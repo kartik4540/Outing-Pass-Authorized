@@ -1,0 +1,35 @@
+#lab-schedules article {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#lab-schedules h3 {
+  color: #003366;
+  margin-top: 0;
+  border-bottom: 1px solid #003366;
+  padding-bottom: 10px;
+}
+
+#lab-schedules ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+#lab-schedules li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+  color: #003366;
+}
+
+#lab-schedules p {
+  margin: 5px 0 15px 20px;
+  color: #333;
+}
+
+#lab-schedules p:nth-of-type(odd) {
+  font-weight: 500;
+} 

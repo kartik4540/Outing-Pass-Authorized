@@ -1,0 +1,129 @@
+.pending-bookings-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.status-filter-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.status-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.status-button:hover {
+  background-color: #e0e0e0;
+}
+
+.status-button.active {
+  background-color: #dc3545;
+  color: white;
+}
+
+.bookings-list {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.booking-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.booking-info {
+  margin-bottom: 15px;
+}
+
+.info-group {
+  margin-bottom: 15px;
+}
+
+.info-group h3 {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.info-group p {
+  margin: 5px 0;
+  color: #666;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-button, .reject-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.confirm-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.confirm-button:hover {
+  background-color: #218838;
+}
+
+.reject-button {
+  background-color: #dc3545;
+  color: white;
+}
+
+.reject-button:hover {
+  background-color: #c82333;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+  color: #666;
+}
+
+.error-message {
+  color: #dc3545;
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+}
+
+.success-message {
+  color: #28a745;
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 20px;
+  background-color: #d4edda;
+  border-radius: 4px;
+}
+
+.no-bookings {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 18px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+} 

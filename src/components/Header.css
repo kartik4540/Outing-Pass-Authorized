@@ -1,0 +1,48 @@
+header {
+  background-color: #003366;
+  color: white;
+  padding: 1em 0;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+header .logo {
+  height: 50px;
+  display: block;
+  margin: 0 auto 10px;
+}
+
+header h1 {
+  margin: 0 0 15px 0;
+  font-size: 1.8rem;
+}
+
+nav ul {
+  display: flex;
+  justify-content: center;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  background-color: #002244;
+}
+
+nav ul li {
+  margin: 0;
+  padding: 0;
+}
+
+nav ul li a {
+  display: block;
+  color: white;
+  text-decoration: none;
+  padding: 10px 15px;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+nav ul li a:hover {
+  background-color: #001122;
+  color: #ffffff;
+} 

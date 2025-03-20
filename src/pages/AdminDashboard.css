@@ -1,0 +1,195 @@
+.admin-dashboard {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-dashboard h1 {
+  color: #333;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.booking-filters {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.filter-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 20px;
+  background: #f5f5f5;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.filter-button:hover {
+  background: #e0e0e0;
+}
+
+.filter-button.active {
+  background: #1a73e8;
+  color: white;
+}
+
+.bookings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.booking-card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  border-left: 4px solid #ddd;
+}
+
+.booking-card.waiting {
+  border-left-color: #f9a825;
+}
+
+.booking-card.confirmed {
+  border-left-color: #43a047;
+}
+
+.booking-card.rejected {
+  border-left-color: #e53935;
+}
+
+.booking-status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.booking-card.waiting .booking-status-badge {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.booking-card.confirmed .booking-status-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.booking-card.rejected .booking-status-badge {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.booking-info {
+  margin-top: 20px;
+}
+
+.booking-info h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.booking-info p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.booking-info strong {
+  color: #333;
+}
+
+.booking-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.action-button {
+  padding: 8px 16px;
+  margin: 4px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-button:active {
+  transform: scale(0.95);
+}
+
+.action-button.clicked {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.action-button.confirm {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.action-button.reject {
+  background-color: #f44336;
+  color: white;
+}
+
+.action-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+}
+
+.error {
+  color: #f44336;
+  text-align: center;
+  padding: 20px;
+  background: #ffebee;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.no-bookings {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .booking-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bookings-list {
+    grid-template-columns: 1fr;
+  }
+} 
