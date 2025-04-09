@@ -38,10 +38,12 @@
 }
 
 .booking-card {
+  position: relative;
   background: white;
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .booking-info {
@@ -126,4 +128,232 @@
   font-size: 18px;
   background-color: #f8f9fa;
   border-radius: 8px;
+}
+
+.action-note {
+  margin: 10px 0 20px;
+  padding: 10px 15px;
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.action-note p {
+  margin: 0;
+  color: #856404;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.admin-handler {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed #ddd;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.admin-handler strong {
+  color: #2c3e50;
+}
+
+.handled-time {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.handled-time strong {
+  color: #2c3e50;
+}
+
+.status-badge {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: 4px 4px 0 0;
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin: -20px -20px 15px -20px;
+}
+
+.status-badge.waiting {
+  background-color: #ffc107;
+}
+
+.status-badge.confirmed {
+  background-color: #28a745;
+}
+
+.status-badge.rejected {
+  background-color: #dc3545;
+}
+
+.handler-info {
+  font-size: 0.85rem;
+  margin-left: 8px;
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+/* Lock Slot Section Styles */
+.lock-slot-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lock-slot-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+}
+
+.lock-slot-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.lock-slot-controls select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 150px;
+}
+
+.lock-slot-button {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.lock-slot-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.locked-slots-list {
+  margin-top: 20px;
+}
+
+.locked-slots-list h4 {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+.locked-slot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.locked-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.locked-slot-info span {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.unlock-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content h3 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.modal-content select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modal-content textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-buttons button:first-child {
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.lock-confirm-button {
+  background-color: #2196f3;
+  color: white;
+}
+
+.lock-confirm-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 } 

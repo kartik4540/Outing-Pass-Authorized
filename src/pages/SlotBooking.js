@@ -90,7 +90,7 @@ const SlotBooking = () => {
   
   // Function to check if a user is admin
   const isAdminUser = (email) => {
-    const adminEmails = ['km5260@srmist.edu.in'];
+    const adminEmails = ['km5260@srmist.edu.in', 'manorant@srmist.edu.in', 'rk0598@srmist.edu.in'];
     return adminEmails.includes(email);
   };
 
@@ -337,17 +337,21 @@ const SlotBooking = () => {
       const bookingsData = await fetchBookedSlots(email);
       
       // Update bookings
-      setBookedSlots(bookingsData);
+      setBookedSlots(bookingsData || []);
       
       // Update counts if available
-      if (bookingsData.counts) {
+      if (bookingsData && bookingsData.counts) {
         setBookingCounts(bookingsData.counts);
       }
       
+      // Clear any existing error
       setError('');
     } catch (error) {
       console.error('Error fetching user bookings:', error);
-      setError('Failed to fetch your bookings. Please try again later.');
+      // Don't set error if it's just that there are no bookings yet
+      if (error.message !== 'No bookings found') {
+        setError('');
+      }
     } finally {
       setLoading(false);
     }
@@ -712,13 +716,13 @@ const SlotBooking = () => {
                       <p><strong>Time Slot:</strong> {booking.time_slot}</p>
                       <p><strong>Status:</strong> {booking.status}</p>
                     </div>
-                    {booking.status === 'waiting' && (
+                    {(booking.status === 'waiting' || booking.status === 'confirmed') && (
                       <button
-                        className="cancel-button"
+                        className={`cancel-button ${booking.status === 'confirmed' ? 'cancel-confirmed' : ''}`}
                         onClick={() => handleDeleteBookedSlot(booking.id)}
                         disabled={loading}
                       >
-                        Cancel Booking
+                        {booking.status === 'confirmed' ? 'Cancel Confirmed Booking' : 'Cancel Booking'}
                       </button>
                     )}
                   </div>

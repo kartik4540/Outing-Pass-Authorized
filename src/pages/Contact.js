@@ -92,10 +92,20 @@ const Contact = () => {
         </div>
       </section>
     
-<footer>
-    <p>Created by :</p>
-    <p><b>Kartik Mittal RA2211003011230</b></p>
-    <p><b>Reetam Kole RA2211003011231</b></p>
+<footer className="contact-footer">
+    <p className="footer-title">Created by :</p>
+    <div className="creator-info">
+        <div className="creator">
+            <p className="creator-name"><b>Kartik Mittal</b></p>
+            <p className="creator-reg">RA2211003011230</p>
+            <p className="creator-email"><a href="mailto:km5260@srmist.edu.in">km5260@srmist.edu.in</a></p>
+        </div>
+        <div className="creator">
+            <p className="creator-name"><b>Reetam Kole</b></p>
+            <p className="creator-reg">RA2211003011231</p>
+            <p className="creator-email"><a href="mailto:rk0598@srmist.edu.in">rk0598@srmist.edu.in</a></p>
+        </div>
+    </div>
 </footer>
 
     </main>

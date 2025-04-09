@@ -45,7 +45,10 @@ const Navbar = ({ user, isAdmin }) => {
           <Link to="/login" onClick={() => { handleBookSlotClick(); setIsMenuOpen(false); }}>Book Slot</Link>
         )}
         {isAdmin && (
-          <Link to="/pending-bookings" onClick={() => setIsMenuOpen(false)}>Pending Bookings</Link>
+          <>
+            <Link to="/pending-bookings" onClick={() => setIsMenuOpen(false)}>Pending Bookings</Link>
+            <Link to="/admin-slot-management" onClick={() => setIsMenuOpen(false)}>Manage Slots</Link>
+          </>
         )}
         <Link to="/contact" onClick={() => setIsMenuOpen(false)}>Contact</Link>
       </div>

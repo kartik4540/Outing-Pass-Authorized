@@ -9,6 +9,7 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Instructors from './pages/Instructors';
 import Schedule from './pages/Schedule';
+import AdminSlotManagement from './pages/AdminSlotManagement';
 import './App.css';
 
 function App() {
@@ -39,12 +40,12 @@ function App() {
   }, []);
 
   const checkAdminStatus = (email) => {
-    const adminEmails = ['km5260@srmist.edu.in', 'manorant@srmist.edu.in'];
+    const adminEmails = ['km5260@srmist.edu.in', 'manorant@srmist.edu.in', 'rk0598@srmist.edu.in'];
     setIsAdmin(adminEmails.includes(email));
   };
 
   return (
-    <Router>
+    <Router>  
       <div className="app">
         <Navbar user={user} isAdmin={isAdmin} />
         <main className="main-content">
@@ -57,6 +58,10 @@ function App() {
             <Route 
               path="/slot-booking" 
               element={user ? <SlotBooking /> : <Login />} 
+            />
+            <Route 
+              path="/admin-slot-management" 
+              element={isAdmin ? <AdminSlotManagement /> : <Home />} 
             />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />

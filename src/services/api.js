@@ -21,18 +21,24 @@ const handleError = (error) => {
  */
 export const fetchAvailableSeats = async (date, lab, dayOrder) => {
   try {
-    // Query available_seats view or function in Supabase
-    const { data: existingBookings, error } = await supabase
+    // Get existing bookings
+    const { data: existingBookings, error: bookingsError } = await supabase
       .from('lab_bookings')
       .select('*')
       .eq('date', date)
       .eq('lab', lab)
-      .in('status', ['confirmed', 'waiting']); // Check both confirmed and waiting bookings
+      .in('status', ['confirmed', 'waiting']);
     
-    if (error) throw error;
+    if (bookingsError) throw bookingsError;
+
+    // Get permanently locked slots
+    const { data: lockedSlots, error: lockedError } = await supabase
+      .from('locked_slots')
+      .select('*')
+      .eq('lab', lab)
+      .eq('day_order', dayOrder);
     
-    // Transform data to match the expected format
-    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
+    if (lockedError) throw lockedError;
     
     // Get all time slots
     const allTimeSlots = [
@@ -42,35 +48,31 @@ export const fetchAvailableSeats = async (date, lab, dayOrder) => {
       "04:00-04:50"
     ];
 
+    // Transform data to match the expected format
+    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
+    const permanentlyLockedSlots = lockedSlots ? lockedSlots.map(slot => slot.time_slot) : [];
+    
     // Define regular class slots for each lab and day order combination
     const regularClassSlots = {
       'LAB A': {
-        '1': [],  // No regular classes
-        '2': [],  // No regular classes
-        '3': ["10:40-11:30", "03:10-04:00"],  // 10:40 AM to 11:30 AM and 3:10 PM to 4:00 PM
-        '4': ["08:00-08:50", "08:50-09:40", "12:30-01:20", "01:25-02:15"],  // 8:00 AM to 9:40 AM and 12:30 PM to 2:15 PM
-        '5': ["09:45-10:35", "10:40-11:30", "11:35-12:25", "12:30-01:20", "01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"]  // 9:45 AM to 4:50 PM
+        '1': [],
+        '2': [],
+        '3': ["10:40-11:30", "03:10-04:00"],
+        '4': ["08:00-08:50", "08:50-09:40", "12:30-01:20", "01:25-02:15"],
+        '5': ["09:45-10:35", "10:40-11:30", "11:35-12:25", "12:30-01:20", "01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"]
       },
       'LAB B': {
-        '1': [],  // No regular classes
-        '2': [],  // No regular classes
-        '3': [],  // No regular classes
-        '4': [],  // No regular classes
-        '5': []   // No regular classes
+        '1': [], '2': [], '3': [], '4': [], '5': []
       },
       'LAB C': {
-        '1': [],  // No regular classes
-        '2': [],  // No regular classes
-        '3': [],  // No regular classes
-        '4': [],  // No regular classes
-        '5': []   // No regular classes
+        '1': [], '2': [], '3': [], '4': [], '5': []
       },
       'LAB D': {
-        '1': ["02:20-03:10", "03:10-04:00", "04:00-04:50"],  // 2:10 PM to 4:30 PM
-        '2': ["01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"],  // 1:25 PM to 4:55 PM
-        '3': ["09:45-10:35", "10:40-11:30"],  // 9:45 AM to 11:30 AM
-        '4': [],  // NIL - no slots to freeze
-        '5': ["08:00-08:50", "08:50-09:40", "09:45-10:35", "10:40-11:30"]  // 8:00 AM to 11:30 AM
+        '1': ["02:20-03:10", "03:10-04:00", "04:00-04:50"],
+        '2': ["01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"],
+        '3': ["09:45-10:35", "10:40-11:30"],
+        '4': [],
+        '5': ["08:00-08:50", "08:50-09:40", "09:45-10:35", "10:40-11:30"]
       }
     };
     
@@ -78,17 +80,19 @@ export const fetchAvailableSeats = async (date, lab, dayOrder) => {
     const availableSlots = allTimeSlots.map(slot => {
       const isBooked = bookedSlots.includes(slot);
       const isRegularClass = regularClassSlots[lab]?.[dayOrder]?.includes(slot) || false;
+      const isPermanentlyLocked = permanentlyLockedSlots.includes(slot);
       
       return {
         time_slot: slot,
-        available: !isBooked && !isRegularClass,
-        status: isBooked ? 'booked' : isRegularClass ? 'regular_class' : 'available'
+        available: !isBooked && !isRegularClass && !isPermanentlyLocked,
+        status: isPermanentlyLocked ? 'locked' : isBooked ? 'booked' : isRegularClass ? 'regular_class' : 'available'
       };
     });
     
     return { 
       availableSlots,
-      dayOrder
+      dayOrder,
+      lockedSlots
     };
   } catch (error) {
     throw handleError(error);
@@ -337,7 +341,11 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
     
     const { data, error } = await supabase
       .from('lab_bookings')
-      .update({ status: newStatus })
+      .update({ 
+        status: newStatus,
+        handled_by: adminEmail,
+        handled_at: new Date().toISOString()
+      })
       .eq('id', bookingId)
       .select();
     
@@ -424,6 +432,77 @@ export const getDayOrderReferences = async (adminEmail) => {
     if (error) throw error;
     
     return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Fetch locked slots for a lab and day order
+ * @param {string} lab - The lab to fetch locked slots for
+ * @param {string} dayOrder - The day order to fetch locked slots for
+ * @returns {Promise<Array>} - Array of locked slots
+ */
+export const fetchLockedSlots = async (lab, dayOrder) => {
+  try {
+    const { data, error } = await supabase
+      .from('locked_slots')
+      .select('*')
+      .eq('lab', lab)
+      .eq('day_order', dayOrder);
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Lock a slot permanently
+ * @param {Object} slotData - The slot data to lock
+ * @param {string} slotData.lab - The lab
+ * @param {string} slotData.timeSlot - The time slot
+ * @param {string} slotData.dayOrder - The day order
+ * @param {string} slotData.reason - The reason for locking
+ * @param {string} adminEmail - The admin's email
+ * @returns {Promise<Object>} - The locked slot data
+ */
+export const lockSlot = async (slotData, adminEmail) => {
+  try {
+    const { data, error } = await supabase
+      .from('locked_slots')
+      .insert([{
+        lab: slotData.lab,
+        time_slot: slotData.timeSlot,
+        day_order: slotData.dayOrder,
+        reason: slotData.reason,
+        locked_by: adminEmail
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Unlock a permanently locked slot
+ * @param {number} slotId - The ID of the locked slot to unlock
+ * @returns {Promise<Object>} - Success message
+ */
+export const unlockSlot = async (slotId) => {
+  try {
+    const { error } = await supabase
+      .from('locked_slots')
+      .delete()
+      .eq('id', slotId);
+    
+    if (error) throw error;
+    return { success: true, message: 'Slot unlocked successfully' };
   } catch (error) {
     throw handleError(error);
   }

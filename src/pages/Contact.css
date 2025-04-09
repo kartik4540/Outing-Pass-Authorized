@@ -202,4 +202,95 @@ address p {
     width: 100%;
     text-align: center;
   }
+}
+
+/* Footer Styles */
+.contact-footer {
+  background: linear-gradient(135deg, #f0f4f8 0%, #e0e0e0 100%);
+  padding: 2rem;
+  margin-top: 3rem;
+  border-radius: 10px;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.footer-title {
+  color: #003366;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  position: relative;
+  display: inline-block;
+}
+
+.footer-title::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 3px;
+  background: #003366;
+  border-radius: 2px;
+}
+
+.creator-info {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.creator {
+  background: white;
+  padding: 1.5rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  min-width: 250px;
+}
+
+.creator:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.creator-name {
+  color: #003366;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.creator-reg {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.creator-email a {
+  color: #1a73e8;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.3s ease;
+}
+
+.creator-email a:hover {
+  color: #1557b0;
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .creator-info {
+    gap: 1.5rem;
+  }
+  
+  .creator {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .contact-footer {
+    padding: 1.5rem;
+  }
 } 
