@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SRM MAC LAB Slot Booking System - Supabase Edition
 
 A simplified version of the slot booking system that uses Supabase directly without a separate backend.
@@ -199,3 +200,6 @@ This direct-to-Supabase approach uses Row Level Security (RLS) to secure your da
 ## Notes
 - All authentication and sensitive actions are now database-driven and secure.
 - For any changes to secrets or environment variables, always redeploy your function or restart your server. 
+=======
+# Outing-Pass-Authorized
+>>>>>>> 095a9e84c128a392bb0b6403c0cbf851d6886000
