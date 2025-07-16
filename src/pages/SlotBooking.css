@@ -941,3 +941,27 @@ input[type="date"].success {
   border-radius: 8px;
   margin-top: 20px;
 } 
+
+@media (max-width: 600px) {
+  .slot-booking-container {
+    padding: 8px;
+  }
+  .booking-form label, .booking-form input, .booking-form select, .booking-form button {
+    width: 100%;
+    font-size: 1em;
+    margin-bottom: 8px;
+  }
+  .time-slots-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .booked-slots-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .booking-button {
+    width: 100%;
+    font-size: 1.1em;
+    padding: 12px;
+  }
+} 

@@ -1,4 +1,15 @@
 node_modules/
 .env
+.env.example
 .cache/
 build/
+.temp/
+supabase/.temp/
+supabase/functions/send-email/.env
+supabase/functions/send-email/.npmrc
+supabase/functions/send-email/node_modules/
+# Ignore lock files if not needed in repo
+package-lock.json
+deno.lock
+# Ignore VSCode settings
+.vscode/

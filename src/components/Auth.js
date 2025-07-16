@@ -27,7 +27,7 @@ const AuthComponent = () => {
       <div className="auth-wrapper">
         <div className="auth-box">
           <div className="welcome-section">
-            <h1>SRM MAC LAB Slot Booking</h1>
+            <h1>Request Outing</h1>
             <p className="subtitle">Sign in with your SRM email (@srmist.edu.in)</p>
           </div>
           <div className="illustration">

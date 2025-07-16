@@ -151,4 +151,127 @@ h1 {
   color: #2e7d32;
   border-radius: 4px;
   text-align: center;
+}
+
+/* Arch Gate Login Button */
+.arch-gate-login-btn {
+  position: fixed;
+  bottom: 18px;
+  right: 22px;
+  z-index: 1001;
+  background: #222;
+  color: #fff;
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.arch-gate-login-btn:hover {
+  opacity: 1;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+/* Modal Overlay */
+.arch-gate-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arch-gate-modal {
+  background: #fff;
+  padding: 28px 24px 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  min-width: 260px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+}
+.arch-gate-modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #1a73e8;
+  text-align: center;
+}
+.arch-gate-input {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 15px;
+  outline: none;
+  transition: border 0.2s;
+}
+.arch-gate-input:focus {
+  border: 1.5px solid #1a73e8;
+}
+.arch-gate-error {
+  color: #c62828;
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.arch-gate-submit {
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 0;
+  font-size: 15px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.arch-gate-submit:hover {
+  background: #1557b0;
+}
+.arch-gate-cancel {
+  background: #eee;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 0;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.arch-gate-cancel:hover {
+  background: #e0e0e0;
+} 
+
+@media (max-width: 600px) {
+  .login-container {
+    padding: 8px;
+    max-width: 98vw;
+  }
+  .auth-box {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .illustration {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .lab-icon, .computer-icon, .book-icon {
+    font-size: 24px;
+    padding: 8px;
+  }
+  h1 {
+    font-size: 1.3em;
+  }
+  .subtitle, .note {
+    font-size: 0.95em;
+  }
 } 

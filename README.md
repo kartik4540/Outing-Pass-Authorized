@@ -121,6 +121,42 @@ You can deploy the frontend to Vercel, Netlify, or any other static site hosting
 2. Set the environment variables for Supabase URL and key
 3. Deploy the application
 
+## Environment Variables
+
+Set the following environment variables for both local development and production (Vercel):
+
+```
+REACT_APP_SUPABASE_URL=your_supabase_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+MAILGUN_API_KEY=your_mailgun_api_key
+MAILGUN_DOMAIN=your_mailgun_domain
+```
+
+- For local development, add these to a `.env` file (do **not** commit this file).
+- For Vercel, add these in the Vercel dashboard under Project Settings > Environment Variables.
+
+## Mailgun API Key Management
+
+- **To update your Mailgun API key or domain:**
+  - If using Supabase CLI:
+    ```sh
+    supabase functions secrets set MAILGUN_API_KEY=your-new-mailgun-key
+    supabase functions secrets set MAILGUN_DOMAIN=your-new-mailgun-domain
+    ```
+  - If using the Supabase Dashboard:
+    - Go to your project > Functions > Secrets (or Settings > API > Secrets)
+    - Update `MAILGUN_API_KEY` and `MAILGUN_DOMAIN`
+    - Redeploy your function if required
+  - For local dev, update your `.env` file and restart your server.
+
+**Never commit your Mailgun API key or any secrets to git.**
+
+## Authentication & Security
+
+- All admin, warden, and arch_gate logins are now handled via the `system_users` table in Supabase.
+- There are **no hardcoded credentials** in the codebase.
+- For security, consider hashing passwords in the future.
+
 ## Authentication Setup
 
 1. In your Supabase project, enable Google OAuth
@@ -151,3 +187,15 @@ This direct-to-Supabase approach uses Row Level Security (RLS) to secure your da
 3. **Built-in Authentication**: Leveraging Supabase Auth
 4. **Real-time Capabilities**: Using Supabase's real-time subscriptions
 5. **Scalable**: Automatically scales with your application needs 
+
+## Deployment to Vercel
+
+1. Push your code to GitHub: [kartik4540/Outing-Pass-Authorized](https://github.com/kartik4540/Outing-Pass-Authorized)
+2. Go to [Vercel](https://vercel.com/) and import your GitHub repo.
+3. In Vercel Project Settings, add all required environment variables (see above).
+4. Deploy your project.
+5. Set up your Supabase Auth redirect URLs to include your Vercel domain.
+
+## Notes
+- All authentication and sensitive actions are now database-driven and secure.
+- For any changes to secrets or environment variables, always redeploy your function or restart your server. 

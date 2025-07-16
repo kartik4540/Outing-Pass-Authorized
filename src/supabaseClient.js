@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Use environment variables for Supabase configuration
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://edpfubyjpjadigoibrde.supabase.co'
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkcGZ1YnlqcGphZGlnb2licmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNjYyOTksImV4cCI6MjA1Nzk0MjI5OX0.wj3BosyWD3ka4ZI3aMWJxZ2IUVY9mEfUDlzgKiN7FBI'
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://fwnknmqlhlyxdeyfcrad.supabase.co'
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bmtubXFsaGx5eGRleWZjcmFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNzE2OTAsImV4cCI6MjA2Njg0NzY5MH0.n8Ya1eNVeATZXkLHoHdR7t8-NaxMtmtbQiZJzuqSsuA'
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

@@ -1,44 +1,51 @@
--- This script sets up the required tables for the SRM MAC LAB Slot Booking System
--- Run this in your Supabase SQL editor to initialize your database
-
--- Create lab_bookings table for storing booking information
-CREATE TABLE IF NOT EXISTS lab_bookings (
-  id SERIAL PRIMARY KEY,
-  date DATE NOT NULL,
-  lab TEXT NOT NULL,
-  time_slot TEXT NOT NULL,
-  email TEXT NOT NULL,
-  name TEXT NOT NULL,
-  register_number TEXT NOT NULL,
-  purpose TEXT,
-  status TEXT NOT NULL DEFAULT 'waiting',
-  admin_email TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (date, lab, time_slot)
-);
-
--- Add indexes for faster queries
-CREATE INDEX IF NOT EXISTS lab_bookings_date_idx ON lab_bookings(date);
-CREATE INDEX IF NOT EXISTS lab_bookings_email_idx ON lab_bookings(email);
-CREATE INDEX IF NOT EXISTS lab_bookings_status_idx ON lab_bookings(status);
-
--- Create admins table for storing admin users
+-- Admins table (for superadmin, warden, etc.)
 CREATE TABLE IF NOT EXISTS admins (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE,
+  password TEXT,
+  role TEXT NOT NULL, -- 'superadmin', 'warden', etc.
+  hostels TEXT[],     -- array of hostel names for warden
   name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create day_orders table for mapping dates to day orders
-CREATE TABLE IF NOT EXISTS day_orders (
-  id SERIAL PRIMARY KEY,
-  date DATE UNIQUE NOT NULL,
-  day_order TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Student Info Table for Admin Management
+CREATE TABLE IF NOT EXISTS student_info (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_email text UNIQUE NOT NULL,
+  hostel_name text NOT NULL,
+  parent_email text NOT NULL,
+  parent_phone text, -- NEW: parent's phone number
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
--- Create health_check table for API health checks
+-- Outing Requests Table
+CREATE TABLE IF NOT EXISTS outing_requests (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  hostel_name TEXT NOT NULL,
+  out_date DATE NOT NULL,
+  out_time TEXT NOT NULL,
+  in_date DATE NOT NULL,
+  in_time TEXT NOT NULL,
+  parent_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'confirmed', 'rejected'
+  otp TEXT UNIQUE,
+  handled_by TEXT,
+  handled_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  otp_used BOOLEAN DEFAULT FALSE
+);
+
+-- Indexes for outing_requests
+CREATE INDEX IF NOT EXISTS outing_requests_email_idx ON outing_requests(email);
+CREATE INDEX IF NOT EXISTS outing_requests_status_idx ON outing_requests(status);
+CREATE INDEX IF NOT EXISTS outing_requests_otp_idx ON outing_requests(otp);
+
+-- Health check table (optional)
 CREATE TABLE IF NOT EXISTS health_check (
   id SERIAL PRIMARY KEY,
   status TEXT DEFAULT 'ok',
@@ -50,79 +57,46 @@ INSERT INTO health_check (status)
 VALUES ('ok')
 ON CONFLICT DO NOTHING;
 
--- Add Row Level Security (RLS) policies
--- Enable RLS on all tables
-ALTER TABLE lab_bookings ENABLE ROW LEVEL SECURITY;
+-- Enable RLS (Row Level Security)
 ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
-ALTER TABLE day_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_info ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outing_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_check ENABLE ROW LEVEL SECURITY;
 
--- Creating policies for lab_bookings
--- 1. Users can view their own bookings
-CREATE POLICY view_own_bookings ON lab_bookings
-    FOR SELECT
-    USING (auth.uid() IS NOT NULL AND email = auth.email());
-
--- 2. Users can create bookings
-CREATE POLICY create_bookings ON lab_bookings
-    FOR INSERT
-    WITH CHECK (auth.uid() IS NOT NULL);
-
--- 3. Users can delete their own bookings
-CREATE POLICY delete_own_bookings ON lab_bookings
-    FOR DELETE
-    USING (auth.uid() IS NOT NULL AND email = auth.email());
-
--- 4. Admin policy helper function
-CREATE OR REPLACE FUNCTION is_admin()
-RETURNS BOOLEAN AS $$
-  DECLARE
-    is_admin BOOLEAN;
-  BEGIN
-    SELECT EXISTS (
-      SELECT 1 FROM admins 
-      WHERE email = auth.email()
-    ) INTO is_admin;
-    RETURN is_admin;
-  END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 5. Admins can view all bookings
-CREATE POLICY admin_view_all_bookings ON lab_bookings
-    FOR SELECT
-    USING (is_admin());
-
--- 6. Admins can update any booking
-CREATE POLICY admin_update_bookings ON lab_bookings
-    FOR UPDATE
-    USING (is_admin());
-
--- Creating policies for admins table
--- 1. Admins can view admin table
+-- RLS Policies (examples, adjust as needed)
+-- 1. Admins can view all admins
 CREATE POLICY view_admins ON admins
     FOR SELECT
-    USING (is_admin());
+    USING (true);
 
--- 2. Only super admin can modify admin table (implement in application logic)
-
--- Creating policies for day_orders
--- 1. Anyone can view day orders
-CREATE POLICY view_day_orders ON day_orders
+-- 2. Wardens and superadmins can view all outing requests
+CREATE POLICY view_outing_requests ON outing_requests
     FOR SELECT
     USING (true);
 
--- 2. Only admins can create or modify day orders
-CREATE POLICY modify_day_orders ON day_orders
+-- 3. Students can view their own outing requests
+CREATE POLICY student_view_own_requests ON outing_requests
+    FOR SELECT
+    USING (email = auth.email());
+
+-- 4. Students can insert their own outing requests
+CREATE POLICY student_create_requests ON outing_requests
+    FOR INSERT
+    WITH CHECK (email = auth.email());
+
+-- 5. Wardens/superadmins can update status, handled_by, etc.
+CREATE POLICY admin_update_requests ON outing_requests
+    FOR UPDATE
+    USING (true);
+
+-- 6. Anyone can view student_info (or restrict to admins/wardens)
+CREATE POLICY view_student_info ON student_info
+    FOR SELECT
+    USING (true);
+
+-- 7. Only admins/wardens can modify student_info
+CREATE POLICY modify_student_info ON student_info
     FOR ALL
-    USING (is_admin());
-
--- Creating policies for health_check
--- Public access to health_check for service checks
-CREATE POLICY public_health_check ON health_check
-    FOR SELECT
     USING (true);
 
--- Add your initial admin user (replace with your email)
--- INSERT INTO admins (email, name) VALUES ('your.admin@srmist.edu.in', 'Admin User');
-
-COMMIT; 
+COMMIT;

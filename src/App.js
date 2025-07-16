@@ -2,71 +2,152 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
 import SlotBooking from './pages/SlotBooking';
 import PendingBookings from './pages/PendingBookings';
-import Contact from './pages/Contact';
 import Login from './pages/Login';
-import Instructors from './pages/Instructors';
-import Schedule from './pages/Schedule';
-import AdminSlotManagement from './pages/AdminSlotManagement';
+import AdminStudentInfo from './pages/AdminStudentInfo';
+import { fetchAdminInfoByEmail } from './services/api';
+import ArchGateLogin from './pages/ArchGateLogin';
+import ArchGateOTP from './pages/ArchGateOTP';
+import ArchGateOutingDetails from './pages/ArchGateOutingDetails';
+import WardenLogin from './pages/WardenLogin';
 import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRole, setAdminRole] = useState(null);
+  const [adminHostels, setAdminHostels] = useState([]);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   useEffect(() => {
-    // Check for initial user session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    setSessionLoading(true);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      try {
+        console.log('Session on reload:', session);
       if (session?.user) {
+          if (!session.user.email.endsWith('@srmist.edu.in')) {
+            alert('Please use your SRM email to log in.');
+            await supabase.auth.signOut();
+            setUser(null);
+            setIsAdmin(false);
+            setAdminRole(null);
+            setAdminHostels([]);
+            setSessionLoading(false);
+            return;
+          }
         setUser(session.user);
-        checkAdminStatus(session.user.email);
+          setAdminLoading(true);
+          checkAdminStatus(session.user.email).finally(() => setAdminLoading(false));
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+          setAdminRole(null);
+          setAdminHostels([]);
+        }
+      } catch (err) {
+        console.error('Error during session check:', err);
+      } finally {
+        setSessionLoading(false);
       }
+    }).catch((err) => {
+      console.error('Error in getSession:', err);
+      setSessionLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        console.log('Auth state changed:', session);
+        setSessionLoading(true);
       if (session?.user) {
+          if (!session.user.email.endsWith('@srmist.edu.in')) {
+            alert('Please use your SRM email to log in.');
+            await supabase.auth.signOut();
+            setUser(null);
+            setIsAdmin(false);
+            setAdminRole(null);
+            setAdminHostels([]);
+            setSessionLoading(false);
+            return;
+          }
         setUser(session.user);
-        checkAdminStatus(session.user.email);
+          setAdminLoading(true);
+          checkAdminStatus(session.user.email).finally(() => setAdminLoading(false));
       } else {
         setUser(null);
         setIsAdmin(false);
+          setAdminRole(null);
+          setAdminHostels([]);
+        }
+      } catch (err) {
+        console.error('Error during auth state change:', err);
+      } finally {
+        setSessionLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminStatus = (email) => {
-    const adminEmails = ['km5260@srmist.edu.in', 'manorant@srmist.edu.in', 'rk0598@srmist.edu.in'];
-    setIsAdmin(adminEmails.includes(email));
+  const checkAdminStatus = async (email) => {
+    console.log('Checking admin status for:', email);
+    try {
+      const adminInfo = await fetchAdminInfoByEmail(email);
+      console.log('Admin info result:', adminInfo);
+      if (adminInfo) {
+        setIsAdmin(true);
+        setAdminRole(adminInfo.role);
+        setAdminHostels(adminInfo.hostels || []);
+      } else {
+        setIsAdmin(false);
+        setAdminRole(null);
+        setAdminHostels([]);
+      }
+    } catch (err) {
+      console.error('Error fetching admin info:', err);
+      setIsAdmin(false);
+      setAdminRole(null);
+      setAdminHostels([]);
+    }
   };
+
+  const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
+
+  if (sessionLoading) {
+    return <div style={{textAlign:'center',marginTop:'100px',fontSize:'1.2em'}}>Loading session...</div>;
+  }
 
   return (
     <Router>  
       <div className="app">
-        <Navbar user={user} isAdmin={isAdmin} />
+        <Navbar user={user} isAdmin={isAdmin} adminLoading={adminLoading} />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<Home />} />
             <Route 
               path="/pending-bookings" 
-              element={isAdmin ? <PendingBookings /> : <Home />} 
+              element={
+                wardenLoggedIn
+                  ? <PendingBookings />
+                  : user
+                    ? (adminLoading ? <div>Checking admin status...</div> : (isAdmin ? <PendingBookings adminRole={adminRole} adminHostels={adminHostels} /> : <Login />))
+                    : <Login />
+              }
             />
             <Route 
               path="/slot-booking" 
               element={user ? <SlotBooking /> : <Login />} 
             />
-            <Route 
-              path="/admin-slot-management" 
-              element={isAdmin ? <AdminSlotManagement /> : <Home />} 
-            />
-            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/instructors" element={<Instructors />} />
-            <Route path="/schedule" element={<Schedule />} />
+            <Route 
+              path="/admin-student-info" 
+              element={user ? (adminLoading ? <div>Checking admin status...</div> : (isAdmin ? <AdminStudentInfo /> : <Login />)) : <Login />} 
+            />
+            <Route path="/warden-login" element={<WardenLogin />} />
+            <Route path="/" element={user ? <SlotBooking /> : <Login />} />
+            <Route path="/arch-gate-login" element={<ArchGateLogin />} />
+            <Route path="/arch-otp" element={<ArchGateOTP />} />
+            <Route path="/arch-outing-details" element={<ArchGateOutingDetails />} />
           </Routes>
         </main>
       </div>

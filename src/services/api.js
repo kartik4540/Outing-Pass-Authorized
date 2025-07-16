@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturnedEmail } from './mailTemplates';
 
 // No longer need API_BASE_URL as we're using Supabase directly
 
@@ -21,24 +22,18 @@ const handleError = (error) => {
  */
 export const fetchAvailableSeats = async (date, lab, dayOrder) => {
   try {
-    // Get existing bookings
-    const { data: existingBookings, error: bookingsError } = await supabase
-      .from('lab_bookings')
+    // Query available_seats view or function in Supabase
+    const { data: existingBookings, error } = await supabase
+      .from('outing_requests')
       .select('*')
       .eq('date', date)
       .eq('lab', lab)
-      .in('status', ['confirmed', 'waiting']);
+      .in('status', ['confirmed', 'waiting']); // Check both confirmed and waiting bookings
     
-    if (bookingsError) throw bookingsError;
-
-    // Get permanently locked slots
-    const { data: lockedSlots, error: lockedError } = await supabase
-      .from('locked_slots')
-      .select('*')
-      .eq('lab', lab)
-      .eq('day_order', dayOrder);
+    if (error) throw error;
     
-    if (lockedError) throw lockedError;
+    // Transform data to match the expected format
+    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
     
     // Get all time slots
     const allTimeSlots = [
@@ -48,31 +43,35 @@ export const fetchAvailableSeats = async (date, lab, dayOrder) => {
       "04:00-04:50"
     ];
 
-    // Transform data to match the expected format
-    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
-    const permanentlyLockedSlots = lockedSlots ? lockedSlots.map(slot => slot.time_slot) : [];
-    
     // Define regular class slots for each lab and day order combination
     const regularClassSlots = {
       'LAB A': {
-        '1': [],
-        '2': [],
-        '3': ["10:40-11:30", "03:10-04:00"],
-        '4': ["08:00-08:50", "08:50-09:40", "12:30-01:20", "01:25-02:15"],
-        '5': ["09:45-10:35", "10:40-11:30", "11:35-12:25", "12:30-01:20", "01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"]
+        '1': [],  // No regular classes
+        '2': [],  // No regular classes
+        '3': ["10:40-11:30", "03:10-04:00"],  // 10:40 AM to 11:30 AM and 3:10 PM to 4:00 PM
+        '4': ["08:00-08:50", "08:50-09:40", "12:30-01:20", "01:25-02:15"],  // 8:00 AM to 9:40 AM and 12:30 PM to 2:15 PM
+        '5': ["09:45-10:35", "10:40-11:30", "11:35-12:25", "12:30-01:20", "01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"]  // 9:45 AM to 4:50 PM
       },
       'LAB B': {
-        '1': [], '2': [], '3': [], '4': [], '5': []
+        '1': [],  // No regular classes
+        '2': [],  // No regular classes
+        '3': [],  // No regular classes
+        '4': [],  // No regular classes
+        '5': []   // No regular classes
       },
       'LAB C': {
-        '1': [], '2': [], '3': [], '4': [], '5': []
+        '1': [],  // No regular classes
+        '2': [],  // No regular classes
+        '3': [],  // No regular classes
+        '4': [],  // No regular classes
+        '5': []   // No regular classes
       },
       'LAB D': {
-        '1': ["02:20-03:10", "03:10-04:00", "04:00-04:50"],
-        '2': ["01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"],
-        '3': ["09:45-10:35", "10:40-11:30"],
-        '4': [],
-        '5': ["08:00-08:50", "08:50-09:40", "09:45-10:35", "10:40-11:30"]
+        '1': ["02:20-03:10", "03:10-04:00", "04:00-04:50"],  // 2:10 PM to 4:30 PM
+        '2': ["01:25-02:15", "02:20-03:10", "03:10-04:00", "04:00-04:50"],  // 1:25 PM to 4:55 PM
+        '3': ["09:45-10:35", "10:40-11:30"],  // 9:45 AM to 11:30 AM
+        '4': [],  // NIL - no slots to freeze
+        '5': ["08:00-08:50", "08:50-09:40", "09:45-10:35", "10:40-11:30"]  // 8:00 AM to 11:30 AM
       }
     };
     
@@ -80,19 +79,17 @@ export const fetchAvailableSeats = async (date, lab, dayOrder) => {
     const availableSlots = allTimeSlots.map(slot => {
       const isBooked = bookedSlots.includes(slot);
       const isRegularClass = regularClassSlots[lab]?.[dayOrder]?.includes(slot) || false;
-      const isPermanentlyLocked = permanentlyLockedSlots.includes(slot);
       
       return {
         time_slot: slot,
-        available: !isBooked && !isRegularClass && !isPermanentlyLocked,
-        status: isPermanentlyLocked ? 'locked' : isBooked ? 'booked' : isRegularClass ? 'regular_class' : 'available'
+        available: !isBooked && !isRegularClass,
+        status: isBooked ? 'booked' : isRegularClass ? 'regular_class' : 'available'
       };
     });
     
     return { 
       availableSlots,
-      dayOrder,
-      lockedSlots
+      dayOrder
     };
   } catch (error) {
     throw handleError(error);
@@ -106,107 +103,36 @@ export const fetchAvailableSeats = async (date, lab, dayOrder) => {
  */
 export const bookSlot = async (bookingData) => {
   try {
-    // Ensure timeSlots is an array
-    if (bookingData.timeSlot) {
-      bookingData.timeSlots = [bookingData.timeSlot];
-      delete bookingData.timeSlot;
-    } else if (!bookingData.timeSlots) {
-      bookingData.timeSlots = [];
-    }
-
     // Validate required fields
-    if (!bookingData.date || !bookingData.lab || !bookingData.timeSlots || bookingData.timeSlots.length === 0) {
-      throw new Error('Missing required fields: date, lab, and at least one time slot are required.');
+    if (!bookingData.name || !bookingData.email || !bookingData.hostelName || !bookingData.outDate || !bookingData.outTime || !bookingData.inDate || !bookingData.inTime) {
+      throw new Error('Missing required fields: name, email, hostel, out date/time, in date/time are required.');
     }
 
-    // Create a booking for each time slot
-    const bookingPromises = bookingData.timeSlots.map(async (timeSlot) => {
-      // First check if there's any existing active booking for this slot
-      const { data: existingBookings, error: checkError } = await supabase
-        .from('lab_bookings')
-        .select('*')
-        .eq('date', bookingData.date)
-        .eq('lab', bookingData.lab)
-        .eq('time_slot', timeSlot)
-        .in('status', ['waiting', 'confirmed']); // Only check waiting and confirmed bookings
-
-      if (checkError) throw checkError;
-
-      // If there's an existing active booking, throw an error
-      if (existingBookings && existingBookings.length > 0) {
-        throw new Error(`The slot ${timeSlot} is already booked or pending approval.`);
-      }
-
-      // If no existing active booking, proceed with insertion
-      const { data, error } = await supabase
-        .from('lab_bookings')
-        .insert([
-          { 
-            date: bookingData.date,
-            lab: bookingData.lab,
-            time_slot: timeSlot,
-            email: bookingData.email,
-            name: bookingData.name,
-            faculty_id: bookingData.facultyId,
-            department: bookingData.department,
-            day_order: bookingData.dayOrder,
-            status: 'waiting' // Initial status is waiting for admin approval
-          }
-        ])
-        .select();
-
-      if (error) {
-        // If there's a unique constraint violation, delete any rejected booking and try again
-        if (error.code === '23505') { // Postgres unique constraint violation code
-          // Delete the rejected booking
-          await supabase
-            .from('lab_bookings')
-            .delete()
-            .match({
-              date: bookingData.date,
-              lab: bookingData.lab,
-              time_slot: timeSlot,
-              status: 'rejected'
-            });
-
-          // Try inserting again
-          const { data: retryData, error: retryError } = await supabase
-            .from('lab_bookings')
-            .insert([
-              { 
-                date: bookingData.date,
-                lab: bookingData.lab,
-                time_slot: timeSlot,
-                email: bookingData.email,
-                name: bookingData.name,
-                faculty_id: bookingData.facultyId,
-                department: bookingData.department,
-                day_order: bookingData.dayOrder,
-                status: 'waiting' // Initial status is waiting for admin approval
-              }
-            ])
-            .select();
-
-          if (retryError) throw retryError;
-          return retryData[0];
+    // Insert the outing request into the database
+    const { data, error } = await supabase
+      .from('outing_requests')
+      .insert([
+        {
+          name: bookingData.name,
+          email: bookingData.email,
+          hostel_name: bookingData.hostelName,
+          out_date: bookingData.outDate,
+          out_time: bookingData.outTime,
+          in_date: bookingData.inDate,
+          in_time: bookingData.inTime,
+          parent_email: bookingData.parentEmail,
+          parent_phone: bookingData.parentPhone, // NEW: include parent_phone
+          status: 'waiting'
         }
-        throw error;
-      }
-      return data[0];
-    });
+      ])
+      .select();
 
-    const results = await Promise.all(bookingPromises.map(p => p.catch(e => e)));
-    
-    // Check if any of the results are errors
-    const errors = results.filter(r => r instanceof Error);
-    if (errors.length > 0) {
-      throw new Error(errors.map(e => e.message).join('\n'));
-    }
-    
-    return { 
-      success: true, 
-      message: 'Booking requests submitted successfully', 
-      bookings: results 
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: 'Outing request submitted successfully!',
+      booking: data[0]
     };
   } catch (error) {
     throw handleError(error);
@@ -221,7 +147,7 @@ export const bookSlot = async (bookingData) => {
 export const fetchBookedSlots = async (email) => {
   try {
     const { data, error } = await supabase
-      .from('lab_bookings')
+      .from('outing_requests')
       .select('*')
       .eq('email', email);
     
@@ -232,21 +158,7 @@ export const fetchBookedSlots = async (email) => {
     const confirmed = data.filter(booking => booking.status === 'confirmed').length;
     const rejected = data.filter(booking => booking.status === 'rejected').length;
     
-    // Add counts to the response
     data.counts = { waiting, confirmed, rejected };
-    
-    // Format dates for display
-    data.forEach(booking => {
-      if (booking.date) {
-        const date = new Date(booking.date);
-        booking.formatted_date = date.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      }
-    });
     
     return data;
   } catch (error) {
@@ -261,8 +173,8 @@ export const fetchBookedSlots = async (email) => {
  */
 export const deleteBookedSlot = async (slotId) => {
   try {
-    const { data, error } = await supabase
-      .from('lab_bookings')
+    const { error } = await supabase
+      .from('outing_requests')
       .delete()
       .eq('id', slotId)
       .select();
@@ -282,47 +194,32 @@ export const deleteBookedSlot = async (slotId) => {
  */
 export const fetchPendingBookings = async (adminEmail) => {
   try {
-    // Fetch all bookings with better error handling
+    // Fetch all outing requests for admin
     const { data, error } = await supabase
-      .from('lab_bookings')
+      .from('outing_requests')
       .select('*')
-      // No status filter - fetch all bookings
-      .order('date', { ascending: false })
+      .order('out_date', { ascending: false })
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Supabase error fetching bookings:', error);
-      throw new Error(`Failed to fetch bookings: ${error.message}`);
+      console.error('Supabase error fetching outing requests:', error);
+      throw new Error(`Failed to fetch outing requests: ${error.message}`);
     }
     
     if (!data) {
-      console.error('No data returned from bookings query');
-      throw new Error('No booking data available');
+      console.error('No data returned from outing requests query');
+      throw new Error('No outing request data available');
     }
     
-    // Format dates for display
-    const formattedData = data.map(booking => {
-      if (booking.date) {
-        const date = new Date(booking.date);
-        return {
-          ...booking,
-          formatted_date: date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })
-        };
-      }
-      return booking;
-    });
-    
-    return formattedData;
+    return data;
   } catch (error) {
-    console.error('Error in fetchPendingBookings:', error);
     throw handleError(error);
   }
 };
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 /**
  * Handle booking action (confirm/reject)
@@ -333,30 +230,92 @@ export const fetchPendingBookings = async (adminEmail) => {
  */
 export const handleBookingAction = async (bookingId, action, adminEmail) => {
   try {
-    // For now, we'll bypass the admin check to make the function work
-    // We'll assume the frontend UI will only show this option to admin users
-    
-    // Update the booking status
-    const newStatus = action === 'confirm' ? 'confirmed' : 'rejected';
-    
+    // action is now the new status: 'still_out', 'confirmed', 'rejected'
+    const newStatus = action;
+    let otp = null;
+    if (newStatus === 'confirmed') {
+      // Only generate OTP if confirming and not already set
+      const { data: existing, error: fetchErr } = await supabase
+        .from('outing_requests')
+        .select('otp')
+        .eq('id', bookingId)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if (!existing.otp) {
+        let unique = false;
+        while (!unique) {
+          otp = generateOTP();
+          const { data: otpExists } = await supabase
+            .from('outing_requests')
+            .select('id')
+            .eq('otp', otp);
+          if (!otpExists || otpExists.length === 0) unique = true;
+        }
+      } else {
+        otp = existing.otp;
+      }
+    }
+    const updateObj = {
+      status: newStatus,
+      handled_by: adminEmail,
+      handled_at: new Date().toISOString(),
+    };
+    if (otp) updateObj.otp = otp;
     const { data, error } = await supabase
-      .from('lab_bookings')
-      .update({ 
-        status: newStatus,
-        handled_by: adminEmail,
-        handled_at: new Date().toISOString()
-      })
+      .from('outing_requests')
+      .update(updateObj)
       .eq('id', bookingId)
       .select();
-    
-    if (error) throw error;
-    
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw new Error(`Supabase error: ${error.message || error}`);
+    }
+
+    let emailResult = { sent: false, error: null };
+    // --- AUTOMATED EMAIL TO PARENT ---
+    if (data && data[0] && data[0].parent_email) {
+      const booking = data[0];
+      let emailTemplate;
+      if (newStatus === 'still_out') {
+        emailTemplate = getNowOutEmail(booking, adminEmail);
+      } else if (newStatus === 'confirmed') {
+        emailTemplate = getReturnedEmail(booking);
+      } else if (newStatus === 'rejected') {
+        emailTemplate = getStatusUpdateEmail(booking, 'rejected');
+      }
+      if (emailTemplate) {
+        const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
+        try {
+          const emailRes = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: booking.parent_email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html
+            })
+          });
+          const emailData = await emailRes.json();
+          if (emailRes.ok && !emailData.error) {
+            emailResult.sent = true;
+          } else {
+            emailResult.error = emailData.error || 'Unknown error';
+          }
+        } catch (err) {
+          emailResult.error = err.message || 'Failed to send email';
+        }
+      }
+    }
+    // --- END EMAIL ---
+
     return { 
       success: true, 
       message: `Booking ${newStatus} successfully`, 
-      booking: data[0] 
+      booking: data[0],
+      emailResult
     };
   } catch (error) {
+    console.error('handleBookingAction error:', error);
     throw handleError(error);
   }
 };
@@ -438,50 +397,52 @@ export const getDayOrderReferences = async (adminEmail) => {
 };
 
 /**
- * Fetch locked slots for a lab and day order
- * @param {string} lab - The lab to fetch locked slots for
- * @param {string} dayOrder - The day order to fetch locked slots for
- * @returns {Promise<Array>} - Array of locked slots
+ * Update only the in_time field for a booking (admin only)
+ * @param {number} bookingId - The booking ID to update
+ * @param {string} newInTime - The new in_time value
+ * @returns {Promise<Object>} - Update confirmation
  */
-export const fetchLockedSlots = async (lab, dayOrder) => {
+export const updateBookingInTime = async (bookingId, newInTime) => {
   try {
     const { data, error } = await supabase
-      .from('locked_slots')
-      .select('*')
-      .eq('lab', lab)
-      .eq('day_order', dayOrder);
-    
+      .from('outing_requests')
+      .update({ in_time: newInTime })
+      .eq('id', bookingId)
+      .select();
     if (error) throw error;
-    return data || [];
+    return {
+      success: true,
+      message: 'In Time updated successfully',
+      booking: data[0]
+    };
   } catch (error) {
     throw handleError(error);
   }
 };
 
 /**
- * Lock a slot permanently
- * @param {Object} slotData - The slot data to lock
- * @param {string} slotData.lab - The lab
- * @param {string} slotData.timeSlot - The time slot
- * @param {string} slotData.dayOrder - The day order
- * @param {string} slotData.reason - The reason for locking
- * @param {string} adminEmail - The admin's email
- * @returns {Promise<Object>} - The locked slot data
+ * Add or update student info (upsert by student_email)
+ * @param {Object} info - student info object
+ * @returns {Promise<Object>} - inserted/updated row
  */
-export const lockSlot = async (slotData, adminEmail) => {
+export async function addOrUpdateStudentInfo(info) {
+  const { data, error } = await supabase
+    .from('student_info')
+    .upsert([info], { onConflict: ['student_email'] });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Fetch all student info (admin only)
+ * @returns {Promise<Array>} - Array of student info
+ */
+export const fetchAllStudentInfo = async () => {
   try {
     const { data, error } = await supabase
-      .from('locked_slots')
-      .insert([{
-        lab: slotData.lab,
-        time_slot: slotData.timeSlot,
-        day_order: slotData.dayOrder,
-        reason: slotData.reason,
-        locked_by: adminEmail
-      }])
-      .select()
-      .single();
-    
+      .from('student_info')
+      .select('*')
+      .order('student_email', { ascending: true });
     if (error) throw error;
     return data;
   } catch (error) {
@@ -490,21 +451,105 @@ export const lockSlot = async (slotData, adminEmail) => {
 };
 
 /**
- * Unlock a permanently locked slot
- * @param {number} slotId - The ID of the locked slot to unlock
- * @returns {Promise<Object>} - Success message
+ * Fetch student info by email
+ * @param {string} email - Student email
+ * @returns {Promise<Object>} - Student info
  */
-export const unlockSlot = async (slotId) => {
+export const fetchStudentInfoByEmail = async (email) => {
+  try {
+    const { data, error } = await supabase
+      .from('student_info')
+      .select('*')
+      .eq('student_email', email.toLowerCase())
+      .single();
+    if (error && error.code === 'PGRST116') return null; // No row found is not an error
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Fetch admin info by email
+ * @param {string} email
+ * @returns {Promise<Object|null>} - Admin info or null if not found
+ */
+export const fetchAdminInfoByEmail = async (email) => {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Delete student info by email (superadmin only)
+ * @param {string} student_email - The student's email
+ * @returns {Promise<Object>} - Deletion confirmation
+ */
+export const deleteStudentInfo = async (student_email) => {
   try {
     const { error } = await supabase
-      .from('locked_slots')
+      .from('student_info')
       .delete()
-      .eq('id', slotId);
-    
+      .eq('student_email', student_email.toLowerCase());
     if (error) throw error;
-    return { success: true, message: 'Slot unlocked successfully' };
+    return { success: true };
   } catch (error) {
     throw handleError(error);
+  }
+};
+
+/**
+ * Authenticate warden by username and password
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<Object|null>} - Warden info or null if not found/invalid
+ */
+export const authenticateWarden = async (username, password) => {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('username', username)
+      // .eq('role', 'warden') // Temporarily removed for debugging
+      .maybeSingle();
+    console.log('Supabase warden query:', { data, error, username, password }); // Debug log
+    if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+    if (data.password !== password) return null;
+    return data;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Authenticate system user by username and password
+ * @param {string} username - The user's username
+ * @param {string} password - The user's password
+ * @returns {Promise<Object|null>} - User info or null if not found/invalid
+ */
+export const authenticateSystemUser = async (username, password) => {
+  try {
+    const { data, error } = await supabase
+      .from('system_users')
+      .select('*')
+      .eq('username', username)
+      .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+    if (data.password_hash !== password) return null;
+    return data;
+  } catch (error) {
+    return null;
   }
 };
 
@@ -525,5 +570,33 @@ export const checkApiHealth = async () => {
   } catch (error) {
     console.error('Supabase connection error:', error);
     return false;
+  }
+};
+
+export const fetchOutingDetailsByOTP = async (otp) => {
+  try {
+    const { data, error } = await supabase
+      .from('outing_requests')
+      .select('*')
+      .eq('otp', otp)
+      .eq('otp_used', false)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+export const markOTPAsUsed = async (otp) => {
+  try {
+    const { error } = await supabase
+      .from('outing_requests')
+      .update({ otp_used: true })
+      .eq('otp', otp);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    throw handleError(error);
   }
 };

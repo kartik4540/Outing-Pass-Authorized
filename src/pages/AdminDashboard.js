@@ -124,7 +124,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-dashboard">
-      <h1>Lab Bookings</h1>
+      <h1>Outing Requests</h1>
 
       <div className="booking-filters">
         <button 
@@ -156,7 +156,7 @@ const AdminDashboard = () => {
         <div className="error">{error}</div>
       ) : filteredBookings.length === 0 ? (
         <div className="no-bookings">
-          No {selectedStatus !== 'all' ? selectedStatus : ''} bookings available
+          No {selectedStatus !== 'all' ? selectedStatus : ''} requests available
         </div>
       ) : (
         <div className="bookings-list">
@@ -169,10 +169,10 @@ const AdminDashboard = () => {
                 <p><strong>Name:</strong> {booking.name}</p>
                 <p><strong>Email:</strong> {booking.email}</p>
                 <p><strong>Department:</strong> {booking.department}</p>
-                <p><strong>Date:</strong> {booking.formatted_date || booking.date}</p>
-                <p><strong>Day Order:</strong> {booking.day_order}</p>
-                <p><strong>Lab:</strong> {booking.lab}</p>
-                <p><strong>Time Slot:</strong> {booking.time_slot}</p>
+                <p><strong>Out Date:</strong> {booking.out_date}</p>
+                <p><strong>Out Time:</strong> {booking.out_time}</p>
+                <p><strong>In Date:</strong> {booking.in_date}</p>
+                <p><strong>In Time:</strong> {booking.in_time}</p>
               </div>
               {booking.status === 'waiting' && (
                 <div className="booking-actions">
