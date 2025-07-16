@@ -284,25 +284,25 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
         emailTemplate = getStatusUpdateEmail(booking, 'rejected');
       }
       if (emailTemplate) {
-        const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
-        try {
-          const emailRes = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+      const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
+      try {
+        const emailRes = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
               to: booking.parent_email,
               subject: emailTemplate.subject,
               html: emailTemplate.html
-            })
-          });
-          const emailData = await emailRes.json();
-          if (emailRes.ok && !emailData.error) {
-            emailResult.sent = true;
-          } else {
-            emailResult.error = emailData.error || 'Unknown error';
-          }
-        } catch (err) {
-          emailResult.error = err.message || 'Failed to send email';
+          })
+        });
+        const emailData = await emailRes.json();
+        if (emailRes.ok && !emailData.error) {
+          emailResult.sent = true;
+        } else {
+          emailResult.error = emailData.error || 'Unknown error';
+        }
+      } catch (err) {
+        emailResult.error = err.message || 'Failed to send email';
         }
       }
     }
@@ -426,12 +426,12 @@ export const updateBookingInTime = async (bookingId, newInTime) => {
  * @returns {Promise<Object>} - inserted/updated row
  */
 export async function addOrUpdateStudentInfo(info) {
-  const { data, error } = await supabase
-    .from('student_info')
+    const { data, error } = await supabase
+      .from('student_info')
     .upsert([info], { onConflict: ['student_email'] });
-  if (error) throw error;
+    if (error) throw error;
   return data;
-}
+  }
 
 /**
  * Fetch all student info (admin only)

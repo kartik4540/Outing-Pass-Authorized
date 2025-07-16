@@ -10,15 +10,15 @@ export default function ArchGateLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+      setError('');
     try {
       const user = await authenticateSystemUser(id, password);
       if (user && user.role === 'arch_gate') {
-        sessionStorage.setItem('archGateLoggedIn', 'true');
+      sessionStorage.setItem('archGateLoggedIn', 'true');
         sessionStorage.setItem('archGateId', user.username);
-        navigate('/arch-otp');
-      } else {
-        setError('Invalid ID or password');
+      navigate('/arch-otp');
+    } else {
+      setError('Invalid ID or password');
       }
     } catch (err) {
       setError('Login failed. Please try again.');

@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { supabase } from '../supabaseClient';
 import srmLogo from '../assets/Srmseal.png';
+import Toast from './Toast';
 
 const Navbar = ({ user, isAdmin, adminLoading }) => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'info' });
   const isArchGate = sessionStorage.getItem('archGateLoggedIn') === 'true';
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenUsername = wardenLoggedIn ? sessionStorage.getItem('wardenUsername') : null;
@@ -16,6 +18,7 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
 
   const handleLogout = async () => {
       await supabase.auth.signOut();
+    sessionStorage.clear();
     window.location.reload();
   };
 
@@ -36,18 +39,12 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
   };
 
   const handleArchGateLogout = () => {
-    sessionStorage.removeItem('archGateLoggedIn');
-    sessionStorage.removeItem('archGateId');
-    sessionStorage.removeItem('archGateOutingDetails');
+    sessionStorage.clear();
     navigate('/login');
   };
 
   const handleWardenLogout = () => {
-    sessionStorage.removeItem('wardenLoggedIn');
-    sessionStorage.removeItem('wardenUsername');
-    sessionStorage.removeItem('wardenHostels');
-    sessionStorage.removeItem('wardenEmail');
-    sessionStorage.removeItem('wardenRole');
+    sessionStorage.clear();
     navigate('/warden-login');
   };
 
@@ -57,6 +54,7 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
 
   return (
     <nav className="navbar">
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <div className="navbar-brand">
         <img src={srmLogo} alt="SRM Logo" className="navbar-logo" />
         <span className="navbar-title">Request Outing</span>

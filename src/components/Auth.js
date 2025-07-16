@@ -2,10 +2,12 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Toast from './Toast';
 
 const AuthComponent = () => {
   const navigate = useNavigate()
+  const [toast, setToast] = useState({ message: '', type: 'info' });
 
   useEffect(() => {
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -16,7 +18,8 @@ const AuthComponent = () => {
         } else {
           // Sign out if not an SRM email
           await supabase.auth.signOut()
-          alert('Please use your SRM email address (@srmist.edu.in) to sign in.')
+          sessionStorage.clear();
+          setToast({ message: 'Please use your SRM email address (@srmist.edu.in) to sign in.', type: 'error' });
         }
       }
     })
@@ -24,6 +27,7 @@ const AuthComponent = () => {
 
   return (
     <div className="auth-container">
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <div className="auth-wrapper">
         <div className="auth-box">
           <div className="welcome-section">

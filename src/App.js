@@ -12,6 +12,7 @@ import ArchGateOTP from './pages/ArchGateOTP';
 import ArchGateOutingDetails from './pages/ArchGateOutingDetails';
 import WardenLogin from './pages/WardenLogin';
 import './App.css';
+import Toast from './components/Toast';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ function App() {
   const [adminHostels, setAdminHostels] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'info' });
 
   useEffect(() => {
     setSessionLoading(true);
@@ -28,12 +30,14 @@ function App() {
         console.log('Session on reload:', session);
       if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
-            alert('Please use your SRM email to log in.');
+            setToast({ message: 'Please use your SRM email to log in.', type: 'error' });
             await supabase.auth.signOut();
             setUser(null);
             setIsAdmin(false);
             setAdminRole(null);
             setAdminHostels([]);
+            // Clear all sessionStorage for all roles
+            sessionStorage.clear();
             setSessionLoading(false);
             return;
           }
@@ -62,12 +66,14 @@ function App() {
         setSessionLoading(true);
       if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
-            alert('Please use your SRM email to log in.');
+            setToast({ message: 'Please use your SRM email to log in.', type: 'error' });
             await supabase.auth.signOut();
             setUser(null);
             setIsAdmin(false);
             setAdminRole(null);
             setAdminHostels([]);
+            // Clear all sessionStorage for all roles
+            sessionStorage.clear();
             setSessionLoading(false);
             return;
           }
@@ -121,6 +127,7 @@ function App() {
   return (
     <Router>  
       <div className="app">
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
         <Navbar user={user} isAdmin={isAdmin} adminLoading={adminLoading} />
         <main className="main-content">
           <Routes>

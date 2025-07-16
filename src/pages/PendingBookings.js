@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
+import Toast from '../components/Toast';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
   const [bookings, setBookings] = useState([]);
@@ -16,6 +17,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [user, setUser] = useState(null);
+  const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
 
   // Warden session support
@@ -121,14 +123,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
         if (result.emailResult.sent) {
-          alert('Email sent to parent successfully.');
+          setToast({ message: 'Email sent to parent successfully.', type: 'info' });
         } else {
-          alert('Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? `\nError: ${result.emailResult.error}` : ''));
+          setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
         }
       }
     } catch (error) {
       setError(`Failed to ${action} booking.`);
-      alert(error.message || JSON.stringify(error));
+      setToast({ message: error.message || JSON.stringify(error), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -208,12 +210,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       });
       const emailData = await emailRes.json();
       if (emailRes.ok && !emailData.error) {
-        alert('Alert email sent to parent successfully.');
+        setToast({ message: 'Alert email sent to parent successfully.', type: 'info' });
       } else {
-        alert('Failed to send alert email to parent.' + (emailData.error ? `\nError: ${emailData.error}` : ''));
+        setToast({ message: 'Failed to send alert email to parent.' + (emailData.error ? ` Error: ${emailData.error}` : ''), type: 'error' });
       }
     } catch (err) {
-      alert('Failed to send alert email: ' + (err.message || err));
+      setToast({ message: 'Failed to send alert email: ' + (err.message || err), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -223,6 +225,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
 
   return (
     <div className="pending-bookings-page">
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <h2>Outing Requests</h2>
       {success && <div className="success-message">{success}</div>}
       {error && <div className="error-message">{error}</div>}
