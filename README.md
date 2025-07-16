@@ -1,130 +1,57 @@
-<<<<<<< HEAD
-# SRM MAC LAB Slot Booking System - Supabase Edition
+# Outing Pass Management System (Supabase Edition)
 
-A simplified version of the slot booking system that uses Supabase directly without a separate backend.
+A modern outing pass management system for hostels, built with React and Supabase. Supports student outing requests, admin/warden approval, parent notifications, and secure authentication.
+
+---
 
 ## Features
 
-- User authentication with Google (limited to @srmist.edu.in email addresses)
-- Lab slot booking system for multiple labs
-- Admin approval workflow for bookings
-- Day order management
-- Responsive UI for mobile and desktop
+- **Student Outing Requests:**  Students can request outings, specifying dates, times, and parent contact info.
+- **Admin & Warden Dashboard:**  Admins and wardens can view, approve, reject, or mark students as “still out.”
+- **Parent Notifications:**  Automated email notifications to parents for status updates (using Mailgun).
+- **Secure Authentication:**  All logins (admin, warden, arch_gate) are managed via the `system_users` table in Supabase.
+- **Student Info Management:**  Admins can manage student info, including parent contact details.
+- **Day Order Management:**  Admins can set and view day orders.
+- **Mobile-Friendly UI:**  Responsive design for all devices.
+
+---
 
 ## Technology Stack
 
-- **Frontend**: React.js
-- **Backend**: Supabase (Backend as a Service)
-- **Database**: PostgreSQL (hosted on Supabase)
-- **Authentication**: Supabase Auth with Google OAuth
+- **Frontend:** React.js
+- **Backend:** Supabase (PostgreSQL, Auth, Edge Functions)
+- **Email:** Mailgun (via Supabase Edge Function)
+- **Authentication:** Supabase Auth & custom user table
 
-## Getting Started
+---
 
-### Prerequisites
+## Database Schema
 
-- Node.js (v14+)
-- npm or yarn
-- A Supabase account and project
+### 1. `admins`
+Stores admin and warden info.
 
-### Installation
+### 2. `student_info`
+Stores student and parent contact info.
 
-1. Clone the repository
-2. Navigate to the project directory
-3. Install dependencies:
-```
-npm install
-```
+### 3. `outing_requests`
+Tracks all outing requests and their statuses.
 
-### Configuration
+### 4. `system_users`
+Handles all custom logins (warden, arch_gate, etc.).
 
-1. Create a `.env` file in the root directory with your Supabase credentials:
-```
-REACT_APP_SUPABASE_URL=your_supabase_url
-REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+### 5. `day_orders`
+Manages day order references.
 
-### Database Setup
+### 6. `health_check`
+For API health checks.
 
-Create the following tables in your Supabase project:
+**See `setup/supabase-init.sql` for full schema and RLS policies.**
 
-#### 1. lab_bookings
-```sql
-CREATE TABLE lab_bookings (
-  id SERIAL PRIMARY KEY,
-  date DATE NOT NULL,
-  lab TEXT NOT NULL,
-  time_slot TEXT NOT NULL,
-  email TEXT NOT NULL,
-  name TEXT NOT NULL,
-  register_number TEXT NOT NULL,
-  purpose TEXT,
-  status TEXT NOT NULL DEFAULT 'waiting',
-  admin_email TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (date, lab, time_slot)
-);
-
--- Add indexes for faster queries
-CREATE INDEX lab_bookings_date_idx ON lab_bookings(date);
-CREATE INDEX lab_bookings_email_idx ON lab_bookings(email);
-CREATE INDEX lab_bookings_status_idx ON lab_bookings(status);
-```
-
-#### 2. admins
-```sql
-CREATE TABLE admins (
-  id SERIAL PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-#### 3. day_orders
-```sql
-CREATE TABLE day_orders (
-  id SERIAL PRIMARY KEY,
-  date DATE UNIQUE NOT NULL,
-  day_order TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-#### 4. health_check (for API health checks)
-```sql
-CREATE TABLE health_check (
-  id SERIAL PRIMARY KEY,
-  status TEXT DEFAULT 'ok',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-INSERT INTO health_check (status) VALUES ('ok');
-```
-
-### Running the Application
-
-```
-npm start
-```
-
-The application will be available at http://localhost:3000.
-
-### Building for Production
-
-```
-npm run build
-```
-
-## Deployment
-
-You can deploy the frontend to Vercel, Netlify, or any other static site hosting:
-
-1. Connect your repository to the deployment platform
-2. Set the environment variables for Supabase URL and key
-3. Deploy the application
+---
 
 ## Environment Variables
 
-Set the following environment variables for both local development and production (Vercel):
+Set these in your `.env` (local) and in Vercel dashboard (production):
 
 ```
 REACT_APP_SUPABASE_URL=your_supabase_url
@@ -133,73 +60,43 @@ MAILGUN_API_KEY=your_mailgun_api_key
 MAILGUN_DOMAIN=your_mailgun_domain
 ```
 
-- For local development, add these to a `.env` file (do **not** commit this file).
-- For Vercel, add these in the Vercel dashboard under Project Settings > Environment Variables.
+---
 
 ## Mailgun API Key Management
 
-- **To update your Mailgun API key or domain:**
-  - If using Supabase CLI:
-    ```sh
-    supabase functions secrets set MAILGUN_API_KEY=your-new-mailgun-key
-    supabase functions secrets set MAILGUN_DOMAIN=your-new-mailgun-domain
-    ```
-  - If using the Supabase Dashboard:
-    - Go to your project > Functions > Secrets (or Settings > API > Secrets)
-    - Update `MAILGUN_API_KEY` and `MAILGUN_DOMAIN`
-    - Redeploy your function if required
-  - For local dev, update your `.env` file and restart your server.
+- Update via Supabase CLI or Dashboard (see README above for details).
+- Never commit secrets to git.
 
-**Never commit your Mailgun API key or any secrets to git.**
+---
 
-## Authentication & Security
+## Deployment
 
-- All admin, warden, and arch_gate logins are now handled via the `system_users` table in Supabase.
-- There are **no hardcoded credentials** in the codebase.
-- For security, consider hashing passwords in the future.
+1. Push your code to [kartik4540/Outing-Pass-Authorized](https://github.com/kartik4540/Outing-Pass-Authorized)
+2. Import the repo in [Vercel](https://vercel.com/)
+3. Set environment variables in Vercel
+4. Deploy and update Supabase Auth redirect URLs
 
-## Authentication Setup
+---
 
-1. In your Supabase project, enable Google OAuth
-2. Configure the redirect URLs for your application
-3. Restrict sign-in to @srmist.edu.in email addresses in the application code
+## Security
 
-## Security Considerations
+- All sensitive actions are protected by Supabase Row Level Security (RLS).
+- No hardcoded credentials; all logins are database-driven.
 
-This direct-to-Supabase approach uses Row Level Security (RLS) to secure your data. Ensure you have these policies set up:
+---
 
-1. For `lab_bookings` table:
-   - Users can only view their own bookings
-   - Admins can view and update all bookings
-   - Users can create new bookings
+## Getting Started
 
-2. For `admins` table:
-   - Only admins can view the admins table
-   - Only super-admins can modify the admins table
+1. Clone the repo and install dependencies:
+   ```sh
+   git clone https://github.com/kartik4540/Outing-Pass-Authorized.git
+   cd Outing-Pass-Authorized
+   npm install
+   ```
+2. Set up your `.env` file.
+3. Run the app:
+   ```sh
+   npm start
+   ```
 
-3. For `day_orders` table:
-   - Anyone can view day orders
-   - Only admins can create or modify day orders
-
-## Benefits of This Approach
-
-1. **Simplified Architecture**: No need to maintain a separate backend
-2. **Reduced Deployment Complexity**: Only one service to deploy
-3. **Built-in Authentication**: Leveraging Supabase Auth
-4. **Real-time Capabilities**: Using Supabase's real-time subscriptions
-5. **Scalable**: Automatically scales with your application needs 
-
-## Deployment to Vercel
-
-1. Push your code to GitHub: [kartik4540/Outing-Pass-Authorized](https://github.com/kartik4540/Outing-Pass-Authorized)
-2. Go to [Vercel](https://vercel.com/) and import your GitHub repo.
-3. In Vercel Project Settings, add all required environment variables (see above).
-4. Deploy your project.
-5. Set up your Supabase Auth redirect URLs to include your Vercel domain.
-
-## Notes
-- All authentication and sensitive actions are now database-driven and secure.
-- For any changes to secrets or environment variables, always redeploy your function or restart your server. 
-=======
-# Outing-Pass-Authorized
->>>>>>> 095a9e84c128a392bb0b6403c0cbf851d6886000
+---
