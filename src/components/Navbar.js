@@ -78,6 +78,7 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
         )}
         {wardenLoggedIn && (
           <Link to="/pending-bookings" onClick={() => setIsMenuOpen(false)}>Pending Bookings</Link>
+          <Link to="/admin-student-info" onClick={() => setIsMenuOpen(false)}>Student Info</Link>
         )}
         {isArchGate && (
           <>
