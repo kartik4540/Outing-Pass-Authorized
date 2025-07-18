@@ -8,13 +8,11 @@ import {
   checkApiHealth,
   fetchPendingBookings,
   handleBookingAction,
-  fetchDayOrder,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail
 } from '../services/api';
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
-import TimeSlots from '../components/TimeSlots';
 
 const SlotBooking = () => {
   // Form state
@@ -31,7 +29,6 @@ const SlotBooking = () => {
   });
 
   // UI state
-  const [timeSlots, setTimeSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bookedSlots, setBookedSlots] = useState([]);
   const [error, setError] = useState('');
@@ -141,7 +138,6 @@ const SlotBooking = () => {
           lab: '',
           timeSlots: []
         }));
-        setTimeSlots([]);
         setSelectedSlots([]);
         return;
       }
@@ -152,7 +148,6 @@ const SlotBooking = () => {
         lab: '',  // Reset lab selection when date changes
         timeSlots: []  // Reset time slots when date changes
       }));
-      setTimeSlots([]); // Clear time slots
       setSelectedSlots([]); // Clear selected slots when date changes
     } else {
       // Update form state for other fields
@@ -162,18 +157,10 @@ const SlotBooking = () => {
           [name]: value
         };
 
-        // If changing day order, reset lab and time slots
-        if (name === 'dayOrder') {
-          updatedForm.lab = '';
-          updatedForm.timeSlots = [];
-          setTimeSlots([]);
-          setSelectedSlots([]);
-        }
-
         // Handle lab selection or day order changes
-        if ((name === 'lab' || name === 'dayOrder') && updatedForm.date) {
+        if ((name === 'lab') && updatedForm.date) {
           // Only fetch available seats if we have both lab and day order
-          if (updatedForm.lab && updatedForm.dayOrder) {
+          if (updatedForm.lab) {
             handleFetchAvailableSeats(updatedForm.date, updatedForm.lab);
           }
         }
@@ -191,15 +178,14 @@ const SlotBooking = () => {
     setApiError(!isHealthy);
     setLoading(false);
     
-    if (isHealthy && bookingForm.date && bookingForm.lab && bookingForm.dayOrder) {
+    if (isHealthy && bookingForm.date && bookingForm.lab) {
       handleFetchAvailableSeats(bookingForm.date, bookingForm.lab);
     }
   };
 
   // Fetch available seats for selected date and lab
   const handleFetchAvailableSeats = async (selectedDate, selectedLab) => {
-    if (!selectedDate || !selectedLab || !bookingForm.dayOrder) {
-      setTimeSlots([]);
+    if (!selectedDate || !selectedLab) {
       setSelectedSlots([]);
       return;
     }
@@ -210,7 +196,7 @@ const SlotBooking = () => {
     setApiError(false);
     
     try {
-      const response = await fetchAvailableSeats(selectedDate, selectedLab, bookingForm.dayOrder);
+      const response = await fetchAvailableSeats(selectedDate, selectedLab);
       console.log('Available slots response:', response);
       
       if (response && response.availableSlots) {
@@ -222,16 +208,8 @@ const SlotBooking = () => {
         }));
         
         // Update time slots
-        setTimeSlots(availableTimeSlots);
-        
-        // Remove any selected slots that are no longer available
-        setSelectedSlots(prevSlots => 
-          prevSlots.filter(slot => 
-            availableTimeSlots.find(ts => ts.value === slot && ts.available)
-          )
-        );
+        setSelectedSlots(availableTimeSlots.map(slot => slot.value));
       } else {
-        setTimeSlots([]);
         setSelectedSlots([]);
         setError('No time slot data available. Please try again.');
       }
@@ -534,17 +512,17 @@ const SlotBooking = () => {
         />
 
         <div className="time-slots-grid">
-          {loading && timeSlots.length === 0 ? (
+          {loading && selectedSlots.length === 0 ? (
             <div>Loading available slots...</div>
-          ) : timeSlots.length > 0 ? (
-            timeSlots.map(slot => (
+          ) : selectedSlots.length > 0 ? (
+            selectedSlots.map(slot => (
               <div
-                key={slot.value}
-                className={`time-slot-item ${!slot.available ? 'disabled' : ''} ${selectedSlots.includes(slot.value) ? 'selected' : ''}`}
-                onClick={() => slot.available && handleSlotSelect(slot.value)}
+                key={slot}
+                className={`time-slot-item ${!slot.available ? 'disabled' : ''} ${selectedSlots.includes(slot) ? 'selected' : ''}`}
+                onClick={() => slot.available && handleSlotSelect(slot)}
                 style={{ cursor: slot.available ? 'pointer' : 'not-allowed' }}
               >
-                <div className="time-slot-time">{slot.label}</div>
+                <div className="time-slot-time">{formatTimeSlotForDisplay(slot)}</div>
                 <div className="time-slot-status" style={{ 
                   color: slot.available ? '#4caf50' : '#f44336',
                   fontWeight: '500'
