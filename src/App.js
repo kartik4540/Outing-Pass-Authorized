@@ -148,7 +148,13 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route 
               path="/admin-student-info" 
-              element={user ? (adminLoading ? <div>Checking admin status...</div> : (isAdmin ? <AdminStudentInfo /> : <Login />)) : <Login />} 
+              element={
+                wardenLoggedIn
+                  ? <AdminStudentInfo />
+                  : user
+                    ? (adminLoading ? <div>Checking admin status...</div> : (isAdmin ? <AdminStudentInfo /> : <Login />))
+                    : <Login />
+              }
             />
             <Route path="/warden-login" element={<WardenLogin />} />
             <Route path="/" element={user ? <SlotBooking /> : <Login />} />
