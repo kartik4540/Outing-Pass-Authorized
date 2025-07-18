@@ -139,19 +139,26 @@ const AdminStudentInfo = () => {
     if (errorCount > 0) setUploadError(`${errorCount} row(s) failed to add/update.`);
   };
 
-  // Filtered list based on search
+  const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
+  const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
+
+  // Filtered list based on search and warden hostel
   const filteredInfo = studentInfo.filter(info => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
       info.student_email.toLowerCase().includes(q) ||
       info.hostel_name.toLowerCase().includes(q) ||
-      (info.parent_email && info.parent_email.toLowerCase().includes(q))
-    );
+      (info.parent_email && info.parent_email.toLowerCase().includes(q));
+    if (wardenLoggedIn && wardenHostels.length > 0) {
+      // Only show students from the warden's hostel(s)
+      return matchesSearch && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
+    }
+    return matchesSearch;
   });
 
   return (
     <div className="admin-student-info-page" style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
-      <h2>Admin: Student Info Management</h2>
+      <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
       <input
         type="text"
         placeholder="Search by email, hostel, or parent email..."
@@ -163,20 +170,23 @@ const AdminStudentInfo = () => {
       {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
       {uploadMessage && <div style={{ color: 'green', marginBottom: 8 }}>{uploadMessage}</div>}
       {uploadError && <div style={{ color: 'red', marginBottom: 8 }}>{uploadError}</div>}
-      {adminRole !== 'superadmin' && (
+      {adminRole !== 'superadmin' && !wardenLoggedIn && (
         <div style={{ color: 'orange', marginBottom: 16, fontWeight: 'bold' }}>
           Only the super warden can add or edit student data.
         </div>
       )}
-      {adminRole === 'superadmin' && (
+      {/* Only superadmin and not warden can add/upload */}
+      {adminRole === 'superadmin' && !wardenLoggedIn && (
         <button onClick={handleAddNew} style={{ marginBottom: 16 }}>Add New Student Info</button>
       )}
-      <div style={{ marginBottom: 16 }}>
-        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>
-          Upload Excel/CSV with columns: Student Email, Hostel Name, Parent Email, Parent Phone
-        </span>
-      </div>
+      {adminRole === 'superadmin' && !wardenLoggedIn && (
+        <div style={{ marginBottom: 16 }}>
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
+          <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>
+            Upload Excel/CSV with columns: Student Email, Hostel Name, Parent Email, Parent Phone
+          </span>
+        </div>
+      )}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
@@ -185,11 +195,14 @@ const AdminStudentInfo = () => {
             <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
             <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
             <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+            {/* Only show Actions column for superadmin and not warden */}
+            {adminRole === 'superadmin' && !wardenLoggedIn && (
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+            )}
           </tr>
         </thead>
         <tbody>
-          {adminRole === 'superadmin' && editing === 'new' && (
+          {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
                 <input name="student_email" value={form.student_email} onChange={handleChange} placeholder="Student Email" />
@@ -211,7 +224,7 @@ const AdminStudentInfo = () => {
             </tr>
           )}
           {filteredInfo.map((info) => (
-            editing === info.id && adminRole === 'superadmin' ? (
+            adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id ? (
               <tr key={info.id}>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
                   <input name="student_email" value={form.student_email} onChange={handleChange} disabled />
@@ -238,12 +251,13 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_email}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_phone || 'N/A'}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  {adminRole === 'superadmin' && <button onClick={() => handleEdit(info)}>Edit</button>}
-                  {adminRole === 'superadmin' && (
+                {/* Only show Actions column for superadmin and not warden */}
+                {adminRole === 'superadmin' && !wardenLoggedIn && (
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                    <button onClick={() => handleEdit(info)}>Edit</button>
                     <button onClick={() => handleDelete(info)} style={{ marginLeft: 8, color: 'red' }}>Delete</button>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             )
           ))}
