@@ -180,12 +180,12 @@ const AdminStudentInfo = () => {
         <button onClick={handleAddNew} style={{ marginBottom: 16 }}>Add New Student Info</button>
       )}
       {adminRole === 'superadmin' && !wardenLoggedIn && (
-        <div style={{ marginBottom: 16 }}>
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
-          <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>
-            Upload Excel/CSV with columns: Student Email, Hostel Name, Parent Email, Parent Phone
-          </span>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
+        <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>
+          Upload Excel/CSV with columns: Student Email, Hostel Name, Parent Email, Parent Phone
+        </span>
+      </div>
       )}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
@@ -197,7 +197,7 @@ const AdminStudentInfo = () => {
             <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
             {/* Only show Actions column for superadmin and not warden */}
             {adminRole === 'superadmin' && !wardenLoggedIn && (
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
             )}
           </tr>
         </thead>
@@ -253,11 +253,11 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
                 {/* Only show Actions column for superadmin and not warden */}
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
                     <button onClick={() => handleEdit(info)}>Edit</button>
                     <button onClick={() => handleDelete(info)} style={{ marginLeft: 8, color: 'red' }}>Delete</button>
                   </td>
-                )}
+                  )}
               </tr>
             )
           ))}

@@ -665,11 +665,7 @@ const SlotBooking = () => {
                           <>
                             <strong>OTP for Arch Gate:</strong> <span style={{fontSize:'1.2em',letterSpacing:2}}>{latest.otp}</span>
                             <div style={{fontSize:'0.9em',color:'#888',marginTop:4}}>
-<<<<<<< HEAD
                               w
-=======
-                              Please present this OTP at the Arch Gate when returning to SRM
->>>>>>> 827fa539edb336164767d53f70a8626833d2c38f
                             </div>
                           </>
                         )}
