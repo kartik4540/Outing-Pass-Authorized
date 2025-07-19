@@ -643,7 +643,7 @@ const SlotBooking = () => {
             <div className="booked-slots-list">
               {(() => {
                 const otpBookings = bookedSlots
-                  .filter(booking => booking.status === 'confirmed' && booking.otp)
+                  .filter(booking => (booking.status === 'still_out' || booking.status === 'confirmed') && booking.otp)
                   .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date));
                 if (otpBookings.length === 0) {
                   return <div className="no-bookings">No OTPs available.</div>;
@@ -665,7 +665,7 @@ const SlotBooking = () => {
                           <>
                             <strong>OTP for Arch Gate:</strong> <span style={{fontSize:'1.2em',letterSpacing:2}}>{latest.otp}</span>
                             <div style={{fontSize:'0.9em',color:'#888',marginTop:4}}>
-                              (Show this OTP at the Arch Gate. Valid for 30 minutes or until submitted.)
+                              w
                             </div>
                           </>
                         )}
