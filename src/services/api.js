@@ -228,6 +228,10 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
     };
     if (otp) updateObj.otp = otp;
     if (resetOtpUsed) updateObj.otp_used = false;
+    if (newStatus === 'confirmed') {
+      // If moving from still_out to confirmed, mark OTP as used
+      updateObj.otp_used = true;
+    }
     const { data, error } = await supabase
       .from('outing_requests')
       .update(updateObj)
