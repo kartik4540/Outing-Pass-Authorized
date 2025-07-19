@@ -197,15 +197,16 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
     // action is now the new status: 'still_out', 'confirmed', 'rejected'
     const newStatus = action;
     let otp = null;
-    if (newStatus === 'confirmed') {
-      // Only generate OTP if confirming and not already set
+    let resetOtpUsed = false;
+    if (newStatus === 'still_out' || newStatus === 'confirmed') {
+      // Generate a new OTP if moving to still_out or confirmed and OTP is missing or used
       const { data: existing, error: fetchErr } = await supabase
         .from('outing_requests')
-        .select('otp')
+        .select('otp, otp_used')
         .eq('id', bookingId)
         .single();
       if (fetchErr) throw fetchErr;
-      if (!existing.otp) {
+      if (!existing.otp || existing.otp_used) {
         let unique = false;
         while (!unique) {
           otp = generateOTP();
@@ -215,6 +216,7 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
             .eq('otp', otp);
           if (!otpExists || otpExists.length === 0) unique = true;
         }
+        resetOtpUsed = true;
       } else {
         otp = existing.otp;
       }
@@ -225,6 +227,7 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
       handled_at: new Date().toISOString(),
     };
     if (otp) updateObj.otp = otp;
+    if (resetOtpUsed) updateObj.otp_used = false;
     const { data, error } = await supabase
       .from('outing_requests')
       .update(updateObj)
