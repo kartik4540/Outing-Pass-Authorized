@@ -43,6 +43,8 @@ const SlotBooking = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [studentInfoExists, setStudentInfoExists] = useState(true); // Assume true by default
   const [banInfo, setBanInfo] = useState(null); // store ban info if banned
+  const [blockBooking, setBlockBooking] = useState(false);
+  const [waitingBooking, setWaitingBooking] = useState(null);
 
   // Check API health and initialize user on component mount
   useEffect(() => {
@@ -396,6 +398,22 @@ const SlotBooking = () => {
     }
   };
 
+  const handleDeleteWaiting = async () => {
+    if (!waitingBooking) return;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await deleteBookedSlot(waitingBooking.id);
+      setSuccess('Booking deleted successfully. You can now make a new request.');
+      await fetchUserBookings(bookingForm.email);
+    } catch (err) {
+      setError(err.message || 'Failed to delete booking');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="slot-booking-container">
       <h2>Request Outing</h2>
@@ -406,7 +424,20 @@ const SlotBooking = () => {
         </div>
       )}
       
-      <form onSubmit={handleBookingSubmit} className="booking-form">
+      {blockBooking && (
+        <div style={{ color: 'red', fontWeight: 600, marginBottom: 24, fontSize: 18 }}>
+          You already have a pending or active outing request. Please complete or delete it before making a new one.
+          {waitingBooking && (
+            <div style={{ marginTop: 12 }}>
+              <button onClick={handleDeleteWaiting} disabled={loading} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
+                {loading ? 'Deleting...' : 'Delete Waiting Request'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <form onSubmit={handleBookingSubmit} className="booking-form" style={{ pointerEvents: blockBooking ? 'none' : 'auto', opacity: blockBooking ? 0.5 : 1 }}>
         <label htmlFor="name">Full Name:</label>
         <input 
           type="text" 
