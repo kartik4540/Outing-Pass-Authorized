@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   fetchAvailableSeats, 
@@ -444,18 +444,24 @@ const SlotBooking = () => {
   };
 
   // Find latest still_out/confirmed booking with OTP
-  const latestOtpBooking = (bookedSlots || [])
-    .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
-    .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0];
+  const latestOtpBooking = useMemo(() =>
+    (bookedSlots || [])
+      .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
+      .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
+  , [bookedSlots]);
 
   // Find the current (waiting or still_out) booking
-  const currentBooking = (bookedSlots || [])
-    .filter(b => b.status === 'waiting' || b.status === 'still_out')
-    .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0];
+  const currentBooking = useMemo(() =>
+    (bookedSlots || [])
+      .filter(b => b.status === 'waiting' || b.status === 'still_out')
+      .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
+  , [bookedSlots]);
 
   // Find all old confirmed bookings
-  const oldConfirmedBookings = (bookedSlots || [])
-    .filter(b => b.status === 'confirmed');
+  const oldConfirmedBookings = useMemo(() =>
+    (bookedSlots || [])
+      .filter(b => b.status === 'confirmed')
+  , [bookedSlots]);
 
   return (
     <div className="slot-booking-container">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { fetchPendingBookings, handleBookingAction } from '../services/api';
 import './AdminDashboard.css';
@@ -107,20 +107,20 @@ const AdminDashboard = () => {
   };
 
   // Client-side filtering with strict status check and additional validation
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = useMemo(() => bookings.filter(booking => {
     if (!booking || !booking.status) return false;
     if (selectedStatus === 'all') return true;
     return booking.status.toLowerCase() === selectedStatus.toLowerCase();
-  });
+  }), [bookings, selectedStatus]);
 
   // Calculate counts with validation
-  const bookingCounts = bookings.reduce((acc, booking) => {
+  const bookingCounts = useMemo(() => bookings.reduce((acc, booking) => {
     if (booking && booking.status) {
       const status = booking.status.toLowerCase();
       acc[status] = (acc[status] || 0) + 1;
     }
     return acc;
-  }, {});
+  }, {}), [bookings]);
 
   return (
     <div className="admin-dashboard">

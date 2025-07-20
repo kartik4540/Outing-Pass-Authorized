@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
@@ -232,7 +232,7 @@ const AdminStudentInfo = () => {
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
   // Filtered list based on search and warden hostel
-  const filteredInfo = studentInfo.filter(info => {
+  const filteredInfo = useMemo(() => studentInfo.filter(info => {
     const q = search.toLowerCase();
     const matchesSearch =
       info.student_email.toLowerCase().includes(q) ||
@@ -243,7 +243,7 @@ const AdminStudentInfo = () => {
       return matchesSearch && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
     }
     return matchesSearch;
-  });
+  }), [studentInfo, search, wardenLoggedIn, wardenHostels]);
 
   console.log('banStatuses:', banStatuses); // DEBUG LOG
 

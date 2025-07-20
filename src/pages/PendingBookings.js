@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
@@ -161,7 +161,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   };
 
   // Filter bookings by date range and hostel for wardens
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = useMemo(() => bookings.filter(booking => {
     // Warden: filter by assigned hostels (case-insensitive, trimmed)
     if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
       const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
@@ -179,14 +179,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (startDate && outDate < startDate) return false;
     if (endDate && outDate > endDate) return false;
     return true;
-  });
+  }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels, startDate, endDate]);
 
   // Calculate counts from filteredBookings
-  const filteredCounts = {
+  const filteredCounts = useMemo(() => ({
     waiting: filteredBookings.filter(b => b.status === 'waiting').length,
     confirmed: filteredBookings.filter(b => b.status === 'confirmed').length,
     rejected: filteredBookings.filter(b => b.status === 'rejected').length,
-  };
+  }), [filteredBookings]);
 
   // Add sendStillOutAlert function before JSX
   const sendStillOutAlert = async (booking) => {
