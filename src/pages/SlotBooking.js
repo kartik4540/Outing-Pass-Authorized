@@ -681,10 +681,10 @@ const SlotBooking = () => {
         </div>
       )}
 
-      {/* Render current request (left) and OTP (right) side by side, with past confirmed under current on the left */}
+      {/* Render current request (left) and OTP (right) side by side at the top, then past confirmed outings below */}
       <div style={{ margin: '32px 0' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginBottom: 32, alignItems: 'flex-start' }}>
-          {/* Left: Current + Past Confirmed */}
+          {/* Left: Current Request */}
           <div style={{ flex: 1, minWidth: 340, display: 'flex', flexDirection: 'column', gap: 32 }}>
             {currentBooking ? (
               <div style={{ background: '#fff', border: '2px solid #ffc107', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
@@ -698,30 +698,12 @@ const SlotBooking = () => {
                 {currentBooking.status === 'waiting' && (
                   <button onClick={() => handleDeleteBooking(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
                     {loading ? 'Deleting...' : 'Delete'}
-            </button>
+                  </button>
                 )}
-            </div>
-          ) : (
+              </div>
+            ) : (
               // Placeholder to align OTP container
               <div style={{ height: 60, marginBottom: 0, visibility: 'hidden' }}></div>
-            )}
-            {oldConfirmedBookings.length > 0 && (
-              <div style={{}}>
-                <h2 style={{ textAlign: 'left', marginBottom: 12 }}>Past Confirmed Outings</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  {oldConfirmedBookings.map(booking => (
-                    <div key={booking.id} style={{ border: '2px solid #4caf50', borderRadius: 12, padding: 20, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative', marginBottom: 0 }}>
-                      <div style={{ position: 'absolute', top: 12, right: 12, background: '#c8e6c9', color: '#256029', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>CONFIRMED</div>
-                      <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
-                      <div><b>Out Date:</b> {booking.out_date}</div>
-                      <div><b>Out Time:</b> {booking.out_time}</div>
-                      <div><b>In Date:</b> {booking.in_date}</div>
-                      <div><b>In Time:</b> {booking.in_time}</div>
-                      <div><b>Status:</b> {booking.status}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
           </div>
           {/* Right: OTP */}
@@ -740,6 +722,24 @@ const SlotBooking = () => {
             </div>
           )}
         </div>
+        {oldConfirmedBookings.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ textAlign: 'left', marginBottom: 12 }}>Past Confirmed Outings</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              {oldConfirmedBookings.map(booking => (
+                <div key={booking.id} style={{ border: '2px solid #4caf50', borderRadius: 12, padding: 20, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative', marginBottom: 0, minWidth: 280 }}>
+                  <div style={{ position: 'absolute', top: 12, right: 12, background: '#c8e6c9', color: '#256029', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>CONFIRMED</div>
+                  <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
+                  <div><b>Out Date:</b> {booking.out_date}</div>
+                  <div><b>Out Time:</b> {booking.out_time}</div>
+                  <div><b>In Date:</b> {booking.in_date}</div>
+                  <div><b>In Time:</b> {booking.in_time}</div>
+                  <div><b>Status:</b> {booking.status}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       
       {bookedSlots && bookedSlots.length > 0 && (
