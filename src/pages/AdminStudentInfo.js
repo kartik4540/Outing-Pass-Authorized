@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail } from '../services/api';
+import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchStudentBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 
@@ -16,6 +16,8 @@ const AdminStudentInfo = () => {
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [banModal, setBanModal] = useState({ open: false, info: null, from: '', till: '', reason: '' });
+  const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
+  const [unbanLoading, setUnbanLoading] = useState({}); // { student_email: boolean }
 
   useEffect(() => {
     loadStudentInfo();
@@ -27,6 +29,21 @@ const AdminStudentInfo = () => {
       }
     });
   }, []);
+
+  // Fetch ban statuses for all students after loading student info
+  useEffect(() => {
+    if (studentInfo.length > 0) {
+      const fetchBans = async () => {
+        const statuses = {};
+        for (const info of studentInfo) {
+          const bans = await fetchStudentBans(info.student_email);
+          statuses[info.student_email] = bans && bans.length > 0 ? bans[0] : null;
+        }
+        setBanStatuses(statuses);
+      };
+      fetchBans();
+    }
+  }, [studentInfo]);
 
   const loadStudentInfo = async () => {
     setLoading(true);
@@ -178,6 +195,20 @@ const AdminStudentInfo = () => {
     }
   };
 
+  const handleUnban = async (student_email) => {
+    if (!banStatuses[student_email]) return;
+    setUnbanLoading(l => ({ ...l, [student_email]: true }));
+    try {
+      await deleteBan(banStatuses[student_email].id);
+      setBanStatuses(s => ({ ...s, [student_email]: null }));
+      setSuccess('Student unbanned successfully!');
+    } catch (err) {
+      setError(err.message || 'Failed to unban student');
+    } finally {
+      setUnbanLoading(l => ({ ...l, [student_email]: false }));
+    }
+  };
+
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
@@ -294,10 +325,18 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
                 {/* Only show Actions column for superadmin and not warden */}
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
-                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px' }}>
+                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button onClick={() => handleEdit(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
                     <button onClick={() => handleDelete(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
                     <button onClick={() => setBanModal({ open: true, info, from: '', till: '', reason: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                    {banStatuses[info.student_email] && (
+                      <>
+                        <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
+                        <button onClick={() => handleUnban(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
+                          {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
+                        </button>
+                      </>
+                    )}
                   </td>
                   )}
               </tr>
