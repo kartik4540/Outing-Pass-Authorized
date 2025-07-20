@@ -10,7 +10,7 @@ import {
   handleBookingAction,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail,
-  checkAndAutoUnban // <-- import the new function
+  checkAndAutoUnban
 } from '../services/api';
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
@@ -406,7 +406,7 @@ const SlotBooking = () => {
         </div>
       )}
       
-      <form onSubmit={handleBookingSubmit} className="booking-form" style={{ pointerEvents: banInfo ? 'none' : 'auto', opacity: banInfo ? 0.5 : 1 }}>
+      <form onSubmit={handleBookingSubmit} className="booking-form">
         <label htmlFor="name">Full Name:</label>
         <input 
           type="text" 
