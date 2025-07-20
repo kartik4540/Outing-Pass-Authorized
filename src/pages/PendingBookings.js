@@ -178,6 +178,13 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return true;
   }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels, startDate, endDate]);
 
+  const filteredCounts = useMemo(() => ({
+    waiting: filteredBookings.filter(b => b.status === 'waiting').length,
+    still_out: filteredBookings.filter(b => b.status === 'still_out').length,
+    confirmed: filteredBookings.filter(b => b.status === 'confirmed').length,
+    rejected: filteredBookings.filter(b => b.status === 'rejected').length,
+  }), [filteredBookings]);
+
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
       setLoading(true);
