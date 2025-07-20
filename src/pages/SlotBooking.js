@@ -117,6 +117,12 @@ const SlotBooking = () => {
     }
   }, []);
 
+  // Block booking if ANY booking is waiting or still_out
+  useEffect(() => {
+    const block = (bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out');
+    setBlockBooking(block);
+  }, [bookedSlots]);
+
   // Handle booking form input changes
   const handleBookingChange = async (e) => {
     const { name, value } = e.target;
@@ -258,6 +264,13 @@ const SlotBooking = () => {
     setLoading(true);
     setError('');
     setSuccess('');
+
+    // Failsafe: Block if any booking is waiting or still_out
+    if ((bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out')) {
+      setError('You already have a pending or active outing request. Please complete or delete it before making a new one.');
+      setLoading(false);
+      return;
+    }
 
     try {
       // Validate required fields
@@ -405,6 +418,22 @@ const SlotBooking = () => {
     setSuccess('');
     try {
       await deleteBookedSlot(waitingBooking.id);
+      setSuccess('Booking deleted successfully. You can now make a new request.');
+      await fetchUserBookings(bookingForm.email);
+    } catch (err) {
+      setError(err.message || 'Failed to delete booking');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete handler for any waiting booking
+  const handleDeleteBooking = async (bookingId) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await deleteBookedSlot(bookingId);
       setSuccess('Booking deleted successfully. You can now make a new request.');
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
@@ -638,106 +667,27 @@ const SlotBooking = () => {
         </div>
       )}
 
-      {bookedSlots.length > 0 && (
-        <div className="booked-slots-section">
+      {bookedSlots && bookedSlots.length > 0 && (
+        <div style={{ margin: '32px 0' }}>
           <h2>Your Requests</h2>
-          
-          <div className="status-filter-buttons">
-            <button
-              className={`status-button ${selectedStatus === 'all' ? 'active' : ''}`}
-              onClick={() => handleStatusFilter('all')}
-            >
-              All Requests ({bookingCounts.waiting + bookingCounts.confirmed + bookingCounts.rejected})
-            </button>
-            <button
-              className={`status-button ${selectedStatus === 'waiting' ? 'active' : ''}`}
-              onClick={() => handleStatusFilter('waiting')}
-            >
-              Waiting ({bookingCounts.waiting})
-            </button>
-            <button
-              className={`status-button ${selectedStatus === 'confirmed' ? 'active' : ''}`}
-              onClick={() => handleStatusFilter('confirmed')}
-            >
-              Confirmed ({bookingCounts.confirmed})
-            </button>
-            <button
-              className={`status-button ${selectedStatus === 'rejected' ? 'active' : ''}`}
-              onClick={() => handleStatusFilter('rejected')}
-            >
-              Rejected ({bookingCounts.rejected})
-            </button>
-            <button
-              className={`status-button ${selectedStatus === 'otp' ? 'active' : ''}`}
-              onClick={() => setSelectedStatus('otp')}
-            >
-              OTP
-            </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+            {bookedSlots.map(booking => (
+              <div key={booking.id} style={{ border: '2px solid #ffc107', borderRadius: 12, padding: 20, minWidth: 280, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, right: 12, background: '#ffe082', color: '#856404', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>{booking.status.toUpperCase()}</div>
+                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
+                <div><b>Out Date:</b> {booking.out_date}</div>
+                <div><b>Out Time:</b> {booking.out_time}</div>
+                <div><b>In Date:</b> {booking.in_date}</div>
+                <div><b>In Time:</b> {booking.in_time}</div>
+                <div><b>Status:</b> {booking.status}</div>
+                {booking.status === 'waiting' && (
+                  <button onClick={() => handleDeleteBooking(booking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
+                    {loading ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
-
-          {selectedStatus === 'otp' ? (
-            <div className="booked-slots-list">
-              {(() => {
-                const otpBookings = bookedSlots
-                  .filter(booking => (booking.status === 'still_out' || booking.status === 'confirmed') && booking.otp)
-                  .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date));
-                if (otpBookings.length === 0) {
-                  return <div className="no-bookings">No OTPs available.</div>;
-                }
-                const latest = otpBookings[0];
-                return (
-                  <div key={latest.id} className={`booking-card otp-card`}>
-                    <div className="booking-status-badge">OTP</div>
-                    <div className="booking-info">
-                      <h3>Booking Details</h3>
-                      <p><strong>Out Date:</strong> {latest.out_date}</p>
-                      <p><strong>Out Time:</strong> {latest.out_time}</p>
-                      <p><strong>In Date:</strong> {latest.in_date}</p>
-                      <p><strong>In Time:</strong> {latest.in_time}</p>
-                      <div className="otp-section" style={{marginTop:12,padding:12,background:'#f9fbe7',border:'1px solid #cddc39',borderRadius:8}}>
-                        {latest.otp_used ? (
-                          <span style={{color:'#f44336',fontWeight:'bold'}}>OTP Used</span>
-                        ) : (
-                          <>
-                            <strong>OTP for Arch Gate:</strong> <span style={{fontSize:'1.2em',letterSpacing:2}}>{latest.otp}</span>
-                            <div style={{fontSize:'0.9em',color:'#888',marginTop:4}}>
-                              w
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          ) : (
-            bookedSlots.length > 0 ? (
-              <div className="booked-slots-list">
-                {bookedSlots
-                  .filter(booking => selectedStatus === 'all' || booking.status === selectedStatus)
-                  .map((booking) => (
-                    <div key={booking.id} className={`booking-card ${booking.status}`}>
-                      <div className="booking-status-badge">{booking.status}</div>
-                      <div className="booking-info">
-                        <h3>Booking Details</h3>
-                        <p><strong>Out Date:</strong> {booking.out_date}</p>
-                        <p><strong>Out Time:</strong> {booking.out_time}</p>
-                        <p><strong>In Date:</strong> {booking.in_date}</p>
-                        <p><strong>In Time:</strong> {booking.in_time}</p>
-                        <p><strong>Status:</strong> {booking.status}</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <div className="no-bookings">
-                {selectedStatus === 'all' 
-                  ? 'You have no bookings yet'
-                  : `You have no ${selectedStatus} bookings`}
-              </div>
-            )
-          )}
         </div>
       )}
     </div>
