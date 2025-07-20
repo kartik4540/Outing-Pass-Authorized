@@ -188,6 +188,9 @@ const AdminStudentInfo = () => {
       await banStudent(banData);
       setSuccess(`Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}`);
       setBanModal({ open: false, info: null, from: '', till: '', reason: '' });
+      // Immediately fetch and update ban status for this student
+      const bans = await fetchStudentBans(banData.student_email);
+      setBanStatuses(s => ({ ...s, [banData.student_email]: bans && bans.length > 0 ? bans[0] : null }));
     } catch (err) {
       setError(err.message || 'Failed to ban student');
     } finally {
@@ -200,7 +203,9 @@ const AdminStudentInfo = () => {
     setUnbanLoading(l => ({ ...l, [student_email]: true }));
     try {
       await deleteBan(banStatuses[student_email].id);
-      setBanStatuses(s => ({ ...s, [student_email]: null }));
+      // Immediately fetch and update ban status for this student
+      const bans = await fetchStudentBans(student_email);
+      setBanStatuses(s => ({ ...s, [student_email]: bans && bans.length > 0 ? bans[0] : null }));
       setSuccess('Student unbanned successfully!');
     } catch (err) {
       setError(err.message || 'Failed to unban student');
