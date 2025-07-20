@@ -681,11 +681,11 @@ const SlotBooking = () => {
         </div>
       )}
 
-      {/* Render current request and OTP side by side, past confirmed below */}
+      {/* Render current request (left) and OTP (right) side by side, past confirmed below */}
       <div style={{ margin: '32px 0' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginBottom: 32 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginBottom: 32, alignItems: 'stretch' }}>
           {currentBooking && (
-            <div style={{ flex: 1, minWidth: 320, background: '#fff', border: '2px solid #ffc107', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', position: 'relative' }}>
+            <div style={{ flex: 1, minWidth: 320, background: '#fff', border: '2px solid #ffc107', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <div style={{ position: 'absolute', top: 12, right: 12, background: '#ffe082', color: '#856404', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>{currentBooking.status.toUpperCase()}</div>
               <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Current Request</div>
               <div><b>Out Date:</b> {currentBooking.out_date}</div>
@@ -701,15 +701,15 @@ const SlotBooking = () => {
             </div>
           )}
           {latestOtpBooking && (
-            <div style={{ flex: 1, minWidth: 320, background: '#f9fbe7', border: '1px solid #cddc39', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001' }}>
-              <h2 style={{ marginTop: 0 }}>OTP for Arch Gate</h2>
-              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ flex: 1, minWidth: 320, background: '#f9fbe7', border: '1px solid #cddc39', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <h2 style={{ marginTop: 0, textAlign: 'right' }}>OTP for Arch Gate</h2>
+              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: 'right' }}>
                 Out Date: {latestOtpBooking.out_date} | In Date: {latestOtpBooking.in_date}
               </div>
-              <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8 }}>
+              <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8, textAlign: 'right' }}>
                 {latestOtpBooking.otp}
               </div>
-              <div style={{ fontSize: 15, color: '#888' }}>
+              <div style={{ fontSize: 15, color: '#888', textAlign: 'right' }}>
                 {latestOtpBooking.otp_used ? <span style={{ color: '#f44336', fontWeight: 'bold' }}>OTP Used</span> : 'Please present this OTP at the Arch Gate when returning to SRM.'}
               </div>
             </div>
@@ -717,7 +717,7 @@ const SlotBooking = () => {
         </div>
         {oldConfirmedBookings.length > 0 && (
           <div style={{ marginTop: 32 }}>
-            <h2>Past Confirmed Outings</h2>
+            <h2 style={{ textAlign: 'left' }}>Past Confirmed Outings</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
               {oldConfirmedBookings.map(booking => (
                 <div key={booking.id} style={{ border: '2px solid #4caf50', borderRadius: 12, padding: 20, minWidth: 280, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative' }}>
