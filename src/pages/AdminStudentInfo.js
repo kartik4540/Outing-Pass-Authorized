@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
@@ -61,7 +61,7 @@ const AdminStudentInfo = () => {
     }
   };
 
-  const handleEdit = (info) => {
+  const handleEdit = useCallback((info) => {
     setEditing(info.id);
     setForm({
       student_email: info.student_email,
@@ -71,27 +71,27 @@ const AdminStudentInfo = () => {
     });
     setSuccess('');
     setError('');
-  };
+  }, []);
 
-  const handleAddNew = () => {
+  const handleAddNew = useCallback(() => {
     setEditing('new');
     setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
     setSuccess('');
     setError('');
-  };
+  }, []);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setEditing(null);
     setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
     setSuccess('');
     setError('');
-  };
+  }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = useCallback((e) => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  }, []);
 
-  const handleSave = async (e) => {
+  const handleSave = useCallback(async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -108,10 +108,10 @@ const AdminStudentInfo = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [form, adminEmail]);
 
   // Add delete handler
-  const handleDelete = async (info) => {
+  const handleDelete = useCallback(async (info) => {
     if (!window.confirm(`Are you sure you want to delete info for ${info.student_email}?`)) return;
     setLoading(true);
     setError('');
@@ -125,7 +125,7 @@ const AdminStudentInfo = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Add this handler inside the component
   const handleExcelUpload = async (event) => {
@@ -206,7 +206,7 @@ const AdminStudentInfo = () => {
     }
   };
 
-  const handleUnban = async (student_email) => {
+  const handleUnban = useCallback(async (student_email) => {
     if (!banStatuses[student_email]) return;
     setUnbanLoading(l => ({ ...l, [student_email]: true }));
     try {
@@ -226,7 +226,7 @@ const AdminStudentInfo = () => {
     } finally {
       setUnbanLoading(l => ({ ...l, [student_email]: false }));
     }
-  };
+  }, [banStatuses]);
 
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];

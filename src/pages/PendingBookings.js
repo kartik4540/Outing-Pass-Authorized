@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
@@ -82,8 +82,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   };
 
-  // Fix: Prevent redirect for warden users in handleStatusChange and handleSaveInTime
-  const handleStatusChange = async (status) => {
+  const handleStatusChange = useCallback(async (status) => {
     setSelectedStatus(status);
     try {
       setLoading(true);
@@ -100,10 +99,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
-  // Update processBookingAction to move 'waiting' to 'still_out' instead of 'confirmed'
-  const processBookingAction = async (bookingId, action) => {
+  const processBookingAction = useCallback(async (bookingId, action) => {
     try {
       setLoading(true);
       let emailToUse = wardenLoggedIn ? wardenEmail : null;
@@ -130,18 +128,17 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         }
       }
     } catch (error) {
-      setError(`Failed to ${action} booking.`);
-      setToast({ message: error.message || JSON.stringify(error), type: 'error' });
+      setError('Failed to process booking action.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, handleBookingAction]);
 
-  const handleInTimeChange = (bookingId, value) => {
+  const handleInTimeChange = useCallback((bookingId, value) => {
     setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
-  };
+  }, []);
 
-  const handleSaveInTime = async (bookingId) => {
+  const handleSaveInTime = useCallback(async (bookingId) => {
     setSavingInTimeId(bookingId);
     try {
       const newInTime = editInTime[bookingId];
@@ -158,7 +155,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setSavingInTimeId(null);
     }
-  };
+  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
 
   // Filter bookings by date range and hostel for wardens
   const filteredBookings = useMemo(() => bookings.filter(booking => {
@@ -181,15 +178,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return true;
   }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels, startDate, endDate]);
 
-  // Calculate counts from filteredBookings
-  const filteredCounts = useMemo(() => ({
-    waiting: filteredBookings.filter(b => b.status === 'waiting').length,
-    confirmed: filteredBookings.filter(b => b.status === 'confirmed').length,
-    rejected: filteredBookings.filter(b => b.status === 'rejected').length,
-  }), [filteredBookings]);
-
-  // Add sendStillOutAlert function before JSX
-  const sendStillOutAlert = async (booking) => {
+  const sendStillOutAlert = useCallback(async (booking) => {
     try {
       setLoading(true);
       // Send custom email to parent
@@ -220,7 +209,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // After fetching bookings, fetch all bans in one call and map by email
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   fetchAvailableSeats, 
@@ -124,7 +124,7 @@ const SlotBooking = () => {
   }, [bookedSlots]);
 
   // Handle booking form input changes
-  const handleBookingChange = async (e) => {
+  const handleBookingChange = useCallback(async (e) => {
     const { name, value } = e.target;
     
     // Prevent only email from being changed
@@ -181,7 +181,7 @@ const SlotBooking = () => {
         return updatedForm;
       });
     }
-  };
+  }, []);
 
   // Retry server connection
   const handleRetryConnection = async () => {
@@ -362,7 +362,7 @@ const SlotBooking = () => {
     }
   };
 
-  const handleSlotSelect = (slot) => {
+  const handleSlotSelect = useCallback((slot) => {
     setSelectedSlots(prevSlots => {
       const newSlots = prevSlots.includes(slot)
         ? prevSlots.filter(s => s !== slot)  // Remove slot if already selected
@@ -378,7 +378,7 @@ const SlotBooking = () => {
     });
     setError('');
     setSuccess('');
-  };
+  }, []);
 
   // Function to check if a date is a weekend
   const isWeekend = (date) => {
@@ -402,16 +402,31 @@ const SlotBooking = () => {
     return currentDate.toISOString().split('T')[0];
   };
 
-  const handleStatusFilter = (status) => {
+  const handleStatusFilter = useCallback((status) => {
     setSelectedStatus(status);
     // We don't need to refetch - just filter the existing bookings
     if (bookedSlots && bookedSlots.length > 0) {
       // The filtering is now handled in the UI by the component
       // We just need to update the selected status
     }
-  };
+  }, [bookedSlots]);
 
-  const handleDeleteWaiting = async () => {
+  const handleDeleteBooking = useCallback(async (bookingId) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await deleteBookedSlot(bookingId);
+      setSuccess('Booking deleted successfully. You can now make a new request.');
+      await fetchUserBookings(bookingForm.email);
+    } catch (err) {
+      setError(err.message || 'Failed to delete booking');
+    } finally {
+      setLoading(false);
+    }
+  }, [bookingForm.email]);
+
+  const handleDeleteWaiting = useCallback(async () => {
     if (!waitingBooking) return;
     setLoading(true);
     setError('');
@@ -425,23 +440,7 @@ const SlotBooking = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Delete handler for any waiting booking
-  const handleDeleteBooking = async (bookingId) => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      await deleteBookedSlot(bookingId);
-      setSuccess('Booking deleted successfully. You can now make a new request.');
-      await fetchUserBookings(bookingForm.email);
-    } catch (err) {
-      setError(err.message || 'Failed to delete booking');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [waitingBooking, bookingForm.email]);
 
   // Find latest still_out/confirmed booking with OTP
   const latestOtpBooking = useMemo(() =>
