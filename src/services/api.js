@@ -685,3 +685,30 @@ export const checkStudentBanStatus = async (studentEmail) => {
     throw handleError(error);
   }
 };
+
+export const checkAndAutoUnban = async (studentEmail) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: bans, error } = await supabase
+      .from('ban_students')
+      .select('*')
+      .eq('student_email', studentEmail.toLowerCase())
+      .eq('is_active', true);
+    if (error) throw error;
+    let activeBan = null;
+    for (const ban of bans) {
+      if (ban.till_date && ban.till_date < today) {
+        // Auto-unban
+        await supabase
+          .from('ban_students')
+          .update({ is_active: false })
+          .eq('id', ban.id);
+      } else if (ban.till_date && ban.from_date && ban.from_date <= today && today <= ban.till_date) {
+        activeBan = ban;
+      }
+    }
+    return activeBan;
+  } catch (error) {
+    throw handleError(error);
+  }
+};

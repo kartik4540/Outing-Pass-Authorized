@@ -9,7 +9,8 @@ import {
   fetchPendingBookings,
   handleBookingAction,
   fetchStudentInfoByEmail,
-  fetchAdminInfoByEmail
+  fetchAdminInfoByEmail,
+  checkAndAutoUnban // <-- import the new function
 } from '../services/api';
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
@@ -41,6 +42,7 @@ const SlotBooking = () => {
   const [bookingCounts, setBookingCounts] = useState({ waiting: 0, confirmed: 0, rejected: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
   const [studentInfoExists, setStudentInfoExists] = useState(true); // Assume true by default
+  const [banInfo, setBanInfo] = useState(null); // store ban info if banned
 
   // Check API health and initialize user on component mount
   useEffect(() => {
@@ -90,6 +92,9 @@ const SlotBooking = () => {
             parentEmail,
             parentPhone
           }));
+          // Ban check and auto-unban
+          const ban = await checkAndAutoUnban(email);
+          setBanInfo(ban);
           if (user.email) {
             await fetchUserBookings(user.email);
           }
@@ -395,13 +400,13 @@ const SlotBooking = () => {
     <div className="slot-booking-container">
       <h2>Request Outing</h2>
       
-      {(!isAdmin && !studentInfoExists) && (
-        <div className="alert alert-warning" style={{margin:'20px auto',maxWidth:500,padding:16,background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:8,color:'#856404',fontSize:'1em',textAlign:'center'}}>
-          Please contact your warden to add your details. You cannot fill in this information yourself.
+      {banInfo && (
+        <div style={{ color: 'red', fontWeight: 600, marginBottom: 24, fontSize: 18 }}>
+          You are banned from making outing requests until {banInfo.till_date}.
         </div>
       )}
       
-      <form onSubmit={handleBookingSubmit} className="booking-form">
+      <form onSubmit={handleBookingSubmit} className="booking-form" style={{ pointerEvents: banInfo ? 'none' : 'auto', opacity: banInfo ? 0.5 : 1 }}>
         <label htmlFor="name">Full Name:</label>
         <input 
           type="text" 
