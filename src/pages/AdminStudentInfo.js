@@ -196,7 +196,7 @@ const AdminStudentInfo = () => {
   });
 
   return (
-    <div className="admin-student-info-page" style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
+    <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
       <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
       <input
         type="text"
@@ -227,8 +227,8 @@ const AdminStudentInfo = () => {
       </div>
       )}
       {/* Responsive table wrapper */}
-      <div style={{ width: '100%', overflowX: 'auto', marginBottom: 24 }}>
-        <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+      <div style={{ width: '100%', overflowX: 'auto', marginBottom: 24, textAlign: 'left' }}>
+        <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr>
               <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
