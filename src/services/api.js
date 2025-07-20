@@ -525,7 +525,7 @@ export const banStudent = async (banData) => {
       throw new Error('Student is already banned for overlapping dates.');
     }
 
-    // Insert the ban record
+    // Insert the ban record, always set is_active: true
     const { data, error } = await supabase
       .from('ban_students')
       .insert([{
@@ -545,6 +545,20 @@ export const banStudent = async (banData) => {
       message: 'Student banned successfully!',
       ban: data[0]
     };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+// Helper: Set is_active=true for all existing bans (run once if needed)
+export const migrateSetAllBansActive = async () => {
+  try {
+    const { error } = await supabase
+      .from('ban_students')
+      .update({ is_active: true })
+      .is('is_active', null);
+    if (error) throw error;
+    return { success: true };
   } catch (error) {
     throw handleError(error);
   }
