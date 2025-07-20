@@ -698,21 +698,21 @@ const SlotBooking = () => {
                 {currentBooking.status === 'waiting' && (
                   <button onClick={() => handleDeleteBooking(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
                     {loading ? 'Deleting...' : 'Delete'}
-                  </button>
+            </button>
                 )}
-              </div>
+          </div>
             ) : (
               // Placeholder to align OTP container
               <div style={{ height: 60, marginBottom: 0, visibility: 'hidden' }}></div>
-            )}
-          </div>
+                        )}
+                      </div>
           {/* Right: OTP */}
           {latestOtpBooking && (
             <div style={{ flex: 1, minWidth: 320, background: '#f9fbe7', border: '1px solid #cddc39', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h2 style={{ marginTop: 0, textAlign: 'right' }}>OTP for Arch Gate</h2>
               <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: 'right' }}>
                 Out Date: {latestOtpBooking.out_date} | In Date: {latestOtpBooking.in_date}
-              </div>
+                    </div>
               <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8, textAlign: 'right' }}>
                 {latestOtpBooking.otp}
               </div>
@@ -738,8 +738,8 @@ const SlotBooking = () => {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+        </div>
+      )}
       </div>
       
     </div>

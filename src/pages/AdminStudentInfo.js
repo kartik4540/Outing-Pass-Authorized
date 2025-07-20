@@ -281,20 +281,20 @@ const AdminStudentInfo = () => {
       {/* Responsive table wrapper */}
       <div style={{ width: '100%', overflowX: 'auto', marginBottom: 24, textAlign: 'left' }}>
         <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Hostel Name</th>
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Hostel Name</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
               {/* Only show Actions column for superadmin and not warden */}
               {adminRole === 'superadmin' && !wardenLoggedIn && (
-              <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+            <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
               )}
-            </tr>
-          </thead>
-          <tbody>
+          </tr>
+        </thead>
+        <tbody>
             {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
@@ -357,8 +357,8 @@ const AdminStudentInfo = () => {
                           {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
                         </button>
                       </>
-                    )}
-                  </td>
+                  )}
+                </td>
                   )}
               </tr>
             )
