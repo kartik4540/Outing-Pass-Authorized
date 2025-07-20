@@ -231,6 +231,8 @@ const AdminStudentInfo = () => {
     return matchesSearch;
   });
 
+  console.log('banStatuses:', banStatuses); // DEBUG LOG
+
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
       <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>

@@ -593,12 +593,10 @@ export const fetchStudentBans = async (studentEmail) => {
     const { data, error } = await supabase
       .from('ban_students')
       .select('*')
-      .eq('student_email', studentEmail)
+      .eq('student_email', studentEmail.toLowerCase()) // ensure case-insensitive match
       .eq('is_active', true)
       .order('created_at', { ascending: false });
-    
     if (error) throw error;
-    
     return data;
   } catch (error) {
     throw handleError(error);
