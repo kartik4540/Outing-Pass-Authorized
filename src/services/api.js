@@ -337,7 +337,8 @@ export const fetchAllStudentInfo = async () => {
     const { data, error } = await supabase
       .from('student_info')
       .select('*')
-      .order('student_email', { ascending: true });
+      .order('student_email', { ascending: true })
+      .range(0, 9999); // fetch up to 10,000 rows
     if (error) throw error;
     return data;
   } catch (error) {
