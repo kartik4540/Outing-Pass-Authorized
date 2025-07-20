@@ -485,12 +485,189 @@ export const fetchOutingDetailsByOTP = async (otp) => {
 
 export const markOTPAsUsed = async (otp) => {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('outing_requests')
       .update({ otp_used: true })
-      .eq('otp', otp);
+      .eq('otp', otp)
+      .select();
+
     if (error) throw error;
-    return true;
+    return data[0];
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Ban a student
+ * @param {Object} banData - The ban data (student_email, from_date, till_date, reason, banned_by)
+ * @returns {Promise<Object>} - Ban confirmation
+ */
+export const banStudent = async (banData) => {
+  try {
+    // Validate required fields
+    if (!banData.student_email || !banData.from_date || !banData.till_date || !banData.banned_by) {
+      throw new Error('Missing required fields: student_email, from_date, till_date, and banned_by are required.');
+    }
+
+    // Check if student is already banned for overlapping dates
+    const { data: existingBans, error: checkError } = await supabase
+      .from('ban_students')
+      .select('*')
+      .eq('student_email', banData.student_email)
+      .eq('is_active', true)
+      .or(`from_date.lte.${banData.till_date},till_date.gte.${banData.from_date}`);
+
+    if (checkError) throw checkError;
+
+    if (existingBans && existingBans.length > 0) {
+      throw new Error('Student is already banned for overlapping dates.');
+    }
+
+    // Insert the ban record
+    const { data, error } = await supabase
+      .from('ban_students')
+      .insert([{
+        student_email: banData.student_email,
+        from_date: banData.from_date,
+        till_date: banData.till_date,
+        reason: banData.reason || null,
+        banned_by: banData.banned_by,
+        is_active: true
+      }])
+      .select();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: 'Student banned successfully!',
+      ban: data[0]
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Fetch all bans (admin only)
+ * @returns {Promise<Array>} - Array of all bans
+ */
+export const fetchAllBans = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('ban_students')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Fetch active bans for a student
+ * @param {string} studentEmail - The student's email
+ * @returns {Promise<Array>} - Array of active bans for the student
+ */
+export const fetchStudentBans = async (studentEmail) => {
+  try {
+    const { data, error } = await supabase
+      .from('ban_students')
+      .select('*')
+      .eq('student_email', studentEmail)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Update a ban
+ * @param {string} banId - The ban ID to update
+ * @param {Object} updateData - The data to update
+ * @returns {Promise<Object>} - Update confirmation
+ */
+export const updateBan = async (banId, updateData) => {
+  try {
+    const { data, error } = await supabase
+      .from('ban_students')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', banId)
+      .select();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: 'Ban updated successfully!',
+      ban: data[0]
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Delete a ban (soft delete by setting is_active to false)
+ * @param {string} banId - The ban ID to delete
+ * @returns {Promise<Object>} - Deletion confirmation
+ */
+export const deleteBan = async (banId) => {
+  try {
+    const { data, error } = await supabase
+      .from('ban_students')
+      .update({ 
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', banId)
+      .select();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      message: 'Ban removed successfully!',
+      ban: data[0]
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Check if a student is currently banned
+ * @param {string} studentEmail - The student's email
+ * @returns {Promise<Object|null>} - Active ban if exists, null otherwise
+ */
+export const checkStudentBanStatus = async (studentEmail) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    const { data, error } = await supabase
+      .from('ban_students')
+      .select('*')
+      .eq('student_email', studentEmail)
+      .eq('is_active', true)
+      .lte('from_date', today)
+      .gte('till_date', today)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows returned
+    
+    return data || null;
   } catch (error) {
     throw handleError(error);
   }

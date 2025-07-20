@@ -21,6 +21,24 @@ CREATE TABLE IF NOT EXISTS student_info (
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
+-- Ban Students Table
+CREATE TABLE IF NOT EXISTS ban_students (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_email text NOT NULL,
+  from_date date NOT NULL,
+  till_date date NOT NULL,
+  reason text,
+  banned_by text NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  is_active boolean DEFAULT true
+);
+
+-- Indexes for ban_students
+CREATE INDEX IF NOT EXISTS ban_students_email_idx ON ban_students(student_email);
+CREATE INDEX IF NOT EXISTS ban_students_active_idx ON ban_students(is_active);
+CREATE INDEX IF NOT EXISTS ban_students_date_range_idx ON ban_students(from_date, till_date);
+
 -- Outing Requests Table
 CREATE TABLE IF NOT EXISTS outing_requests (
   id SERIAL PRIMARY KEY,
@@ -98,5 +116,23 @@ CREATE POLICY view_student_info ON student_info
 CREATE POLICY modify_student_info ON student_info
     FOR ALL
     USING (true);
+
+-- 8. Enable RLS for ban_students table
+ALTER TABLE ban_students ENABLE ROW LEVEL SECURITY;
+
+-- 9. Admins can view all bans
+CREATE POLICY view_ban_students ON ban_students
+    FOR SELECT
+    USING (true);
+
+-- 10. Only admins can create/update/delete bans
+CREATE POLICY modify_ban_students ON ban_students
+    FOR ALL
+    USING (true);
+
+-- 11. Students can view their own ban status
+CREATE POLICY student_view_own_ban ON ban_students
+    FOR SELECT
+    USING (student_email = auth.email());
 
 COMMIT;

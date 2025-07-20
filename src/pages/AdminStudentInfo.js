@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchAllStudentInfo, addOrUpdateStudentInfo, fetchAdminInfoByEmail, deleteStudentInfo } from '../services/api';
+import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 
@@ -15,7 +15,7 @@ const AdminStudentInfo = () => {
   const [adminRole, setAdminRole] = useState('');
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [banModal, setBanModal] = useState({ open: false, info: null, from: '', till: '' });
+  const [banModal, setBanModal] = useState({ open: false, info: null, from: '', till: '', reason: '' });
 
   useEffect(() => {
     loadStudentInfo();
@@ -140,6 +140,41 @@ const AdminStudentInfo = () => {
     if (errorCount > 0) setUploadError(`${errorCount} row(s) failed to add/update.`);
   };
 
+  // Add ban handler
+  const handleBanSubmit = async () => {
+    if (!banModal.from || !banModal.till) {
+      setError('Please select both From and Till dates');
+      return;
+    }
+
+    if (new Date(banModal.from) > new Date(banModal.till)) {
+      setError('From date cannot be after Till date');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const banData = {
+        student_email: banModal.info.student_email,
+        from_date: banModal.from,
+        till_date: banModal.till,
+        reason: banModal.reason || null,
+        banned_by: adminEmail
+      };
+
+      await banStudent(banData);
+      setSuccess(`Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}`);
+      setBanModal({ open: false, info: null, from: '', till: '', reason: '' });
+    } catch (err) {
+      setError(err.message || 'Failed to ban student');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
@@ -257,7 +292,7 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px' }}>
                     <button onClick={() => handleEdit(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
                     <button onClick={() => handleDelete(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
-                    <button onClick={() => setBanModal({ open: true, info, from: '', till: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                    <button onClick={() => setBanModal({ open: true, info, from: '', till: '', reason: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
                   </td>
                   )}
               </tr>
@@ -277,9 +312,30 @@ const AdminStudentInfo = () => {
         <label style={{ fontWeight: 500 }}>Till:</label><br />
         <input type="date" value={banModal.till} onChange={e => setBanModal(modal => ({ ...modal, till: e.target.value }))} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
       </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontWeight: 500 }}>Reason (Optional):</label><br />
+        <textarea 
+          value={banModal.reason} 
+          onChange={e => setBanModal(modal => ({ ...modal, reason: e.target.value }))} 
+          placeholder="Enter reason for ban..."
+          style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%', minHeight: 60, resize: 'vertical' }}
+        />
+      </div>
       <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-        <button style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} onClick={() => setBanModal({ open: false, info: null, from: '', till: '' })}>Ban</button>
-        <button style={{ background: '#888', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} onClick={() => setBanModal({ open: false, info: null, from: '', till: '' })}>Cancel</button>
+        <button 
+          style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} 
+          onClick={handleBanSubmit}
+          disabled={loading}
+        >
+          {loading ? 'Banning...' : 'Ban'}
+        </button>
+        <button 
+          style={{ background: '#888', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} 
+          onClick={() => setBanModal({ open: false, info: null, from: '', till: '', reason: '' })}
+          disabled={loading}
+        >
+          Cancel
+        </button>
       </div>
     </div>
   </div>
