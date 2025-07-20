@@ -33,6 +33,7 @@ const AdminStudentInfo = () => {
     setError('');
     try {
       const data = await fetchAllStudentInfo();
+      console.log('Fetched student info:', data); // DEBUG LOG
       setStudentInfo(data || []);
     } catch (err) {
       setError(err.message || 'Failed to fetch student info');
@@ -77,7 +78,8 @@ const AdminStudentInfo = () => {
     setError('');
     setSuccess('');
     try {
-      await addOrUpdateStudentInfo(form, adminEmail);
+      const upsertResult = await addOrUpdateStudentInfo(form, adminEmail);
+      console.log('Upsert result:', upsertResult); // DEBUG LOG
       setSuccess('Student info saved!');
       setEditing(null);
       setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
