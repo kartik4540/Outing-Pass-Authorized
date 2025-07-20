@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchStudentBans, deleteBan } from '../services/api';
+import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 
@@ -34,10 +34,12 @@ const AdminStudentInfo = () => {
   useEffect(() => {
     if (studentInfo.length > 0) {
       const fetchBans = async () => {
+        const allBans = await fetchAllBans();
         const statuses = {};
-        for (const info of studentInfo) {
-          const bans = await fetchStudentBans(info.student_email);
-          statuses[info.student_email] = bans && bans.length > 0 ? bans[0] : null;
+        for (const ban of allBans) {
+          if (!statuses[ban.student_email]) {
+            statuses[ban.student_email] = ban;
+          }
         }
         setBanStatuses(statuses);
       };
@@ -188,9 +190,15 @@ const AdminStudentInfo = () => {
       await banStudent(banData);
       setSuccess(`Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}`);
       setBanModal({ open: false, info: null, from: '', till: '', reason: '' });
-      // Immediately fetch and update ban status for this student
-      const bans = await fetchStudentBans(banData.student_email);
-      setBanStatuses(s => ({ ...s, [banData.student_email]: bans && bans.length > 0 ? bans[0] : null }));
+      // Immediately fetch and update all ban statuses
+      const allBans = await fetchAllBans();
+      const statuses = {};
+      for (const ban of allBans) {
+        if (!statuses[ban.student_email]) {
+          statuses[ban.student_email] = ban;
+        }
+      }
+      setBanStatuses(statuses);
     } catch (err) {
       setError(err.message || 'Failed to ban student');
     } finally {
@@ -203,9 +211,15 @@ const AdminStudentInfo = () => {
     setUnbanLoading(l => ({ ...l, [student_email]: true }));
     try {
       await deleteBan(banStatuses[student_email].id);
-      // Immediately fetch and update ban status for this student
-      const bans = await fetchStudentBans(student_email);
-      setBanStatuses(s => ({ ...s, [student_email]: bans && bans.length > 0 ? bans[0] : null }));
+      // Immediately fetch and update all ban statuses
+      const allBans2 = await fetchAllBans();
+      const statuses2 = {};
+      for (const ban of allBans2) {
+        if (!statuses2[ban.student_email]) {
+          statuses2[ban.student_email] = ban;
+        }
+      }
+      setBanStatuses(statuses2);
       setSuccess('Student unbanned successfully!');
     } catch (err) {
       setError(err.message || 'Failed to unban student');

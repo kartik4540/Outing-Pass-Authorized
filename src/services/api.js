@@ -573,10 +573,8 @@ export const fetchAllBans = async () => {
     const { data, error } = await supabase
       .from('ban_students')
       .select('*')
-      .order('created_at', { ascending: false });
-    
+      .eq('is_active', true);
     if (error) throw error;
-    
     return data;
   } catch (error) {
     throw handleError(error);
