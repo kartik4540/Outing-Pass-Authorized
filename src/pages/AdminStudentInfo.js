@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 const AdminStudentInfo = () => {
   const [studentInfo, setStudentInfo] = useState([]);
   const [editing, setEditing] = useState(null); // id or null
-  const [form, setForm] = useState({ student_email: '', hostel_name: '', parent_email: '' });
+  const [form, setForm] = useState({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -47,6 +47,7 @@ const AdminStudentInfo = () => {
       student_email: info.student_email,
       hostel_name: info.hostel_name,
       parent_email: info.parent_email,
+      parent_phone: info.parent_phone || ''
     });
     setSuccess('');
     setError('');
@@ -54,14 +55,14 @@ const AdminStudentInfo = () => {
 
   const handleAddNew = () => {
     setEditing('new');
-    setForm({ student_email: '', hostel_name: '', parent_email: '' });
+    setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
     setSuccess('');
     setError('');
   };
 
   const handleCancel = () => {
     setEditing(null);
-    setForm({ student_email: '', hostel_name: '', parent_email: '' });
+    setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
     setSuccess('');
     setError('');
   };
@@ -79,7 +80,7 @@ const AdminStudentInfo = () => {
       await addOrUpdateStudentInfo(form, adminEmail);
       setSuccess('Student info saved!');
       setEditing(null);
-      setForm({ student_email: '', hostel_name: '', parent_email: '' });
+      setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
       await loadStudentInfo();
     } catch (err) {
       setError(err.message || 'Failed to save student info');
@@ -223,22 +224,24 @@ const AdminStudentInfo = () => {
         </span>
       </div>
       )}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Hostel Name</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
-            {/* Only show Actions column for superadmin and not warden */}
-            {adminRole === 'superadmin' && !wardenLoggedIn && (
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
+      {/* Responsive table wrapper */}
+      <div style={{ width: '100%', overflowX: 'auto', marginBottom: 24 }}>
+        <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Hostel Name</th>
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
+              {/* Only show Actions column for superadmin and not warden */}
+              {adminRole === 'superadmin' && !wardenLoggedIn && (
+              <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
                 <input name="student_email" value={form.student_email} onChange={handleChange} placeholder="Student Email" />
@@ -300,6 +303,7 @@ const AdminStudentInfo = () => {
           ))}
         </tbody>
       </table>
+      </div>
       {banModal.open && (
   <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
     <div style={{ background: 'white', borderRadius: 10, padding: 32, minWidth: 320, boxShadow: '0 4px 24px #0002', position: 'relative' }}>
