@@ -443,6 +443,15 @@ const SlotBooking = () => {
     }
   };
 
+  // Find latest still_out/confirmed booking with OTP
+  const latestOtpBooking = (bookedSlots || [])
+    .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
+    .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0];
+
+  // Find all old confirmed bookings
+  const oldConfirmedBookings = (bookedSlots || [])
+    .filter(b => b.status === 'confirmed');
+
   return (
     <div className="slot-booking-container">
       <h2>Request Outing</h2>
@@ -667,6 +676,39 @@ const SlotBooking = () => {
         </div>
       )}
 
+      {latestOtpBooking && (
+        <div style={{ margin: '32px 0', padding: 20, background: '#f9fbe7', border: '1px solid #cddc39', borderRadius: 8 }}>
+          <h2>OTP for Arch Gate</h2>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+            Out Date: {latestOtpBooking.out_date} | In Date: {latestOtpBooking.in_date}
+          </div>
+          <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8 }}>
+            {latestOtpBooking.otp}
+          </div>
+          <div style={{ fontSize: 15, color: '#888' }}>
+            {latestOtpBooking.otp_used ? <span style={{ color: '#f44336', fontWeight: 'bold' }}>OTP Used</span> : 'Please present this OTP at the Arch Gate when returning to SRM.'}
+          </div>
+        </div>
+      )}
+      {oldConfirmedBookings.length > 0 && (
+        <div style={{ margin: '32px 0' }}>
+          <h2>Past Confirmed Outings</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+            {oldConfirmedBookings.map(booking => (
+              <div key={booking.id} style={{ border: '2px solid #4caf50', borderRadius: 12, padding: 20, minWidth: 280, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, right: 12, background: '#c8e6c9', color: '#256029', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>CONFIRMED</div>
+                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
+                <div><b>Out Date:</b> {booking.out_date}</div>
+                <div><b>Out Time:</b> {booking.out_time}</div>
+                <div><b>In Date:</b> {booking.in_date}</div>
+                <div><b>In Time:</b> {booking.in_time}</div>
+                <div><b>Status:</b> {booking.status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
       {bookedSlots && bookedSlots.length > 0 && (
         <div style={{ margin: '32px 0' }}>
           <h2>Your Requests</h2>
