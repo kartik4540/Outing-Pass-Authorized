@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime } from '../services/api';
+import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchStudentBans } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
@@ -19,6 +19,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [user, setUser] = useState(null);
   const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
+  const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
 
   // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -221,6 +222,20 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   };
 
+  // Fetch ban statuses for all unique student emails in filteredBookings
+  useEffect(() => {
+    const fetchBans = async () => {
+      const emails = Array.from(new Set(filteredBookings.map(b => b.email)));
+      const statuses = {};
+      for (const email of emails) {
+        const bans = await fetchStudentBans(email);
+        statuses[email] = bans && bans.length > 0 ? bans[0] : null;
+      }
+      setBanStatuses(statuses);
+    };
+    if (filteredBookings.length > 0) fetchBans();
+  }, [filteredBookings]);
+
   if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
@@ -277,7 +292,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                 <div className="info-group">
                   <h3>User Details</h3>
                   <p><strong>Name:</strong> {booking.name}</p>
-                  <p><strong>Email:</strong> {booking.email}</p>
+                  <p><strong>Email:</strong> {booking.email}
+                    {banStatuses[booking.email] && (
+                      <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 8px', fontWeight: 600, marginLeft: 6, fontSize: 12 }}>BANNED</span>
+                    )}
+                  </p>
                   <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
                   <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
                 </div>
