@@ -15,6 +15,7 @@ const AdminStudentInfo = () => {
   const [adminRole, setAdminRole] = useState('');
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [banModal, setBanModal] = useState({ open: false, info: null, from: '', till: '' });
 
   useEffect(() => {
     loadStudentInfo();
@@ -253,9 +254,10 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
                 {/* Only show Actions column for superadmin and not warden */}
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                    <button onClick={() => handleEdit(info)}>Edit</button>
-                    <button onClick={() => handleDelete(info)} style={{ marginLeft: 8, color: 'red' }}>Delete</button>
+                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleEdit(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
+                    <button onClick={() => handleDelete(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
+                    <button onClick={() => setBanModal({ open: true, info, from: '', till: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
                   </td>
                   )}
               </tr>
@@ -263,6 +265,25 @@ const AdminStudentInfo = () => {
           ))}
         </tbody>
       </table>
+      {banModal.open && (
+  <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+    <div style={{ background: 'white', borderRadius: 10, padding: 32, minWidth: 320, boxShadow: '0 4px 24px #0002', position: 'relative' }}>
+      <h3 style={{ marginBottom: 18 }}>Ban Student</h3>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontWeight: 500 }}>From:</label><br />
+        <input type="date" value={banModal.from} onChange={e => setBanModal(modal => ({ ...modal, from: e.target.value }))} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontWeight: 500 }}>Till:</label><br />
+        <input type="date" value={banModal.till} onChange={e => setBanModal(modal => ({ ...modal, till: e.target.value }))} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+        <button style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} onClick={() => setBanModal({ open: false, info: null, from: '', till: '' })}>Ban</button>
+        <button style={{ background: '#888', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} onClick={() => setBanModal({ open: false, info: null, from: '', till: '' })}>Cancel</button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
