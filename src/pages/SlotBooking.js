@@ -742,29 +742,6 @@ const SlotBooking = () => {
         )}
       </div>
       
-      {bookedSlots && bookedSlots.length > 0 && (
-        <div style={{ margin: '32px 0' }}>
-          <h2>Your Requests</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-            {bookedSlots.map(booking => (
-              <div key={booking.id} style={{ border: '2px solid #ffc107', borderRadius: 12, padding: 20, minWidth: 280, background: '#fff', boxShadow: '0 2px 8px #0001', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 12, right: 12, background: '#ffe082', color: '#856404', borderRadius: 6, padding: '2px 12px', fontWeight: 700, fontSize: 14 }}>{booking.status.toUpperCase()}</div>
-                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Booking Details</div>
-                <div><b>Out Date:</b> {booking.out_date}</div>
-                <div><b>Out Time:</b> {booking.out_time}</div>
-                <div><b>In Date:</b> {booking.in_date}</div>
-                <div><b>In Time:</b> {booking.in_time}</div>
-                <div><b>Status:</b> {booking.status}</div>
-                {booking.status === 'waiting' && (
-                  <button onClick={() => handleDeleteBooking(booking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
-                    {loading ? 'Deleting...' : 'Delete'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
