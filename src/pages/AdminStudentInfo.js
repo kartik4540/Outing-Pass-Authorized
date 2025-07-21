@@ -265,7 +265,7 @@ const AdminStudentInfo = () => {
             const activeBan = await fetchStudentBans(student_email);
             if (activeBan && activeBan.length > 0) {
                 await deleteBan(activeBan[0].id);
-                setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Corrected
+                setToast({ message: 'Student unbanned successfully!', type: 'success' }); // This is the fix
                 fetchBans();
             } else {
                 setToast({ message: 'No active ban found for this student.', type: 'error' });
