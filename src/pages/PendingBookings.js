@@ -58,6 +58,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      // Debug log: print all bookings fetched
+      console.log('Fetched bookings:', bookingsData.map(b => ({id: b.id, status: b.status, hostel: b.hostel_name, email: b.email})));
       if (!Array.isArray(bookingsData)) {
         setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
         setLoading(false);
@@ -168,8 +170,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     // Warden: filter by assigned hostels (case-insensitive, trimmed)
     if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
       const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+      if (!normalizedHostels.includes('all')) {
+        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+        if (!normalizedHostels.includes(bookingHostel)) return false;
+      }
+      // If 'all' is present, do not filter by hostel
     }
     // Admin: filter by adminHostels if provided
     if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
