@@ -253,7 +253,30 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
                   <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {/* Booking actions and details end here */}
+                  {selectedStatus === 'waiting' && (
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => processBookingAction(booking.id, 'confirm')}
+                        className="confirm-button"
+                        disabled={loading}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => processBookingAction(booking.id, 'reject')}
+                        className="reject-button"
+                        disabled={loading}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                  {selectedStatus === 'still_out' && (
+                    <div className="still-out-actions">
+                      <button onClick={() => processBookingAction(booking.id, 'confirm')} className="confirm-button" disabled={loading}>In</button>
+                      <button onClick={() => sendStillOutAlert(booking)} className="reject-button" disabled={loading}>Alert</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
