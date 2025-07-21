@@ -6,7 +6,8 @@ import './PendingBookings.css';
 import Toast from '../components/Toast';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]); // Raw data from backend
+  const [bookings, setBookings] = useState([]); // Filtered by status
   const [selectedStatus, setSelectedStatus] = useState('waiting');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,13 +28,32 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
+  // Fetch all bookings ONCE on mount or after real change
   useEffect(() => {
-    if (wardenLoggedIn) {
-      fetchAllBookings(wardenEmail);
-    } else {
-      checkAdminAndFetchBookings();
-    }
+    const fetchInitialBookings = async () => {
+      if (wardenLoggedIn) {
+        await fetchAndSetAllBookings(wardenEmail);
+      } else {
+        await checkAdminAndFetchBookings();
+      }
+    };
+    fetchInitialBookings();
   }, []);
+
+  // Helper to fetch and set all bookings
+  const fetchAndSetAllBookings = async (adminEmail) => {
+    try {
+      setLoading(true);
+      const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      setAllBookings(bookingsData);
+      setError(null);
+    } catch (error) {
+      setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
+      console.error('FetchAllBookings error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkAdminAndFetchBookings = async () => {
     try {
@@ -47,60 +67,34 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         navigate('/');
         return;
       }
-      await fetchAllBookings(user.email);
+      await fetchAndSetAllBookings(user.email);
     } catch (error) {
       console.error('Error in checkAdminAndFetchBookings:', error);
       setError('Failed to authenticate');
     }
   };
 
-  const fetchAllBookings = async (adminEmail, status) => {
-    try {
-      setLoading(true);
-      const bookingsData = await fetchPendingBookings(adminEmail) || [];
-      if (!Array.isArray(bookingsData)) {
-        setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
-        setLoading(false);
-        return;
-      }
-      const statusToUse = status || selectedStatus;
-      const filteredBookings = statusToUse === 'all'
-        ? bookingsData 
-        : bookingsData.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
-      setBookings(filteredBookings);
-      const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
-      const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
-      const confirmed = bookingsData.filter(booking => booking.status === 'confirmed').length;
-      const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
-      setCounts({ waiting, still_out, confirmed, rejected });
-      setError(null);
-    } catch (error) {
-      setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
-      console.error('FetchAllBookings error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Only filter locally on tab/status change
+  useEffect(() => {
+    const statusToUse = selectedStatus;
+    const filtered = statusToUse === 'all'
+      ? allBookings
+      : allBookings.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
+    setBookings(filtered);
+    // Update counts
+    const waiting = allBookings.filter(booking => booking.status === 'waiting').length;
+    const still_out = allBookings.filter(booking => booking.status === 'still_out').length;
+    const confirmed = allBookings.filter(booking => booking.status === 'confirmed').length;
+    const rejected = allBookings.filter(booking => booking.status === 'rejected').length;
+    setCounts({ waiting, still_out, confirmed, rejected });
+  }, [allBookings, selectedStatus]);
 
-  const handleStatusChange = useCallback(async (status) => {
+  // Only update selectedStatus on tab click, don't fetch
+  const handleStatusChange = useCallback((status) => {
     setSelectedStatus(status);
-    try {
-      setLoading(true);
-      if (wardenLoggedIn) {
-        await fetchAllBookings(wardenEmail, status);
-      } else {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        await fetchAllBookings(user.email, status);
-      }
-      setError(null);
-    } catch (error) {
-      setError('Failed to filter bookings.');
-    } finally {
-      setLoading(false);
-    }
-  }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
+  }, []);
 
+  // After a real change, re-fetch all bookings
   const processBookingAction = useCallback(async (bookingId, action) => {
     try {
       setLoading(true);
@@ -117,14 +111,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         newStatus = 'confirmed';
       }
       const result = await handleBookingAction(bookingId, newStatus, emailToUse);
-      // Only switch tab if confirming, not for rejection
-      if (newStatus === 'still_out' || newStatus === 'confirmed') {
-        setSelectedStatus(newStatus);
-        await fetchAllBookings(emailToUse, newStatus);
-      } else {
-        // For rejection, stay on current tab and just refresh
-        await fetchAllBookings(emailToUse, selectedStatus);
-      }
+      // After any action, re-fetch all bookings
+      await fetchAndSetAllBookings(emailToUse);
+      setSelectedStatus(newStatus === 'still_out' || newStatus === 'confirmed' ? newStatus : selectedStatus);
       setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
         if (result.emailResult.sent) {
@@ -138,7 +127,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, handleBookingAction]);
+  }, [wardenLoggedIn, wardenEmail, selectedStatus]);
 
   const handleInTimeChange = useCallback((bookingId, value) => {
     setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
@@ -150,10 +139,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const newInTime = editInTime[bookingId];
       await updateBookingInTime(bookingId, newInTime);
       if (wardenLoggedIn) {
-        await fetchAllBookings(wardenEmail, selectedStatus);
+        await fetchAndSetAllBookings(wardenEmail);
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        await fetchAllBookings(user.email, selectedStatus);
+        await fetchAndSetAllBookings(user.email);
       }
       setSuccess('In Time updated successfully.');
     } catch (error) {
@@ -161,23 +150,23 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setSavingInTimeId(null);
     }
-  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
+  }, [editInTime, wardenLoggedIn, wardenEmail, fetchAndSetAllBookings]);
 
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
     const filtered = bookings.filter(booking => {
-      if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
-        const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
+    if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
+      const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
         if (!normalizedHostels.includes('all')) {
-          const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
           if (!normalizedHostels.includes(bookingHostel)) return false;
         }
-      }
-      if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
-        const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
-        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-        if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
-      }
+    }
+    if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
+      const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
+      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+    }
       return true;
     });
     return filtered;
@@ -263,6 +252,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     <div className="pending-bookings-page">
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <h2>Outing Requests</h2>
+      <button onClick={handleManualRefresh} style={{ marginBottom: 12 }}>Refresh</button>
       {success && <div className="success-message">{success}</div>}
       {error && <div className="error-message">{error}</div>}
       
@@ -271,25 +261,25 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           className={selectedStatus === 'waiting' ? 'active' : ''}
           onClick={() => handleStatusChange('waiting')}
         >
-          Waiting ({tabCounts.waiting})
+          Waiting ({counts.waiting})
         </button>
         <button
           className={selectedStatus === 'still_out' ? 'active' : ''}
           onClick={() => handleStatusChange('still_out')}
         >
-          Still Out ({tabCounts.still_out || 0})
+          Still Out ({counts.still_out || 0})
         </button>
         <button
           className={selectedStatus === 'confirmed' ? 'active' : ''}
           onClick={() => handleStatusChange('confirmed')}
         >
-          Confirmed ({tabCounts.confirmed})
+          Confirmed ({counts.confirmed})
         </button>
         <button
           className={selectedStatus === 'rejected' ? 'active' : ''}
           onClick={() => handleStatusChange('rejected')}
         >
-          Rejected ({tabCounts.rejected})
+          Rejected ({counts.rejected})
         </button>
       </div>
       
@@ -304,9 +294,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       </div>
       
-      {filteredBookings.length > 0 ? (
+      {bookings.length > 0 ? (
         <div className="bookings-list">
-          {filteredBookings.map(booking => (
+          {bookings.map(booking => (
             <div key={booking.id} className="booking-card">
               <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
               <div className="booking-info">

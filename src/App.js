@@ -27,7 +27,7 @@ function App() {
     setSessionLoading(true);
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
-        if (session?.user) {
+      if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
             setToast({ message: 'Please use your SRM email to log in.', type: 'error' });
             await supabase.auth.signOut();
@@ -62,7 +62,7 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         setSessionLoading(true);
-        if (session?.user) {
+      if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
             setToast({ message: 'Please use your SRM email to log in.', type: 'error' });
             await supabase.auth.signOut();

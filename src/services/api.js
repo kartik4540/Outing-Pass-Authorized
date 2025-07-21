@@ -321,12 +321,12 @@ export async function addOrUpdateStudentInfo(info) {
   const lowerInfo = Object.fromEntries(
     Object.entries(info).map(([k, v]) => [k, typeof v === 'string' ? v.toLowerCase() : v])
   );
-  const { data, error } = await supabase
-    .from('student_info')
+    const { data, error } = await supabase
+      .from('student_info')
     .upsert([lowerInfo], { onConflict: ['student_email'] });
-  if (error) throw error;
+    if (error) throw error;
   return data;
-}
+  }
 
 /**
  * Fetch all student info (admin only)
