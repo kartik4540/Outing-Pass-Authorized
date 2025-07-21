@@ -125,73 +125,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     };
   }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAndSetAllBookings]);
 
-  // Move processBookingAction and sendStillOutAlert to top-level
-  const processBookingAction = async (bookingId, action) => {
-    try {
-      setLoading(true);
-      let emailToUse = wardenLoggedIn ? wardenEmail : null;
-      if (!wardenLoggedIn) {
-        const { data: { user } } = await supabase.auth.getUser();
-        emailToUse = user?.email;
-      }
-      let newStatus = action;
-      if (selectedStatus === 'waiting' && action === 'confirm') {
-        newStatus = 'still_out';
-      }
-      if (selectedStatus === 'still_out' && action === 'confirm') {
-        newStatus = 'confirmed';
-      }
-      const result = await updateBookingInTime(bookingId, newStatus);
-      // After any action, re-fetch all bookings
-      await fetchAndSetAllBookings(emailToUse);
-      setSelectedStatus(newStatus === 'still_out' || newStatus === 'confirmed' ? newStatus : selectedStatus);
-      if (result.emailResult) {
-        if (result.emailResult.sent) {
-          setToast({ message: 'Email sent to parent successfully.', type: 'info' });
-        } else {
-          setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
-        }
-      }
-    } catch (error) {
-      setError('Failed to process booking action.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendStillOutAlert = async (booking) => {
-    try {
-      setLoading(true);
-      // Send custom email to parent
-      const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
-      const html = `
-        <p>Dear Parent,</p>
-        <p>Your ward <b>${booking.name}</b> (${booking.email}) from <b>${booking.hostel_name}</b> has not returned by the expected time.</p>
-        <p>Please contact the hostel administration for more information.</p>
-        <p><i>This is an automated alert.</i></p>
-      `;
-      const emailRes = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: booking.parent_email,
-          subject: 'Alert: Your ward is still out',
-          html
-        })
-      });
-      const emailData = await emailRes.json();
-      if (emailRes.ok && !emailData.error) {
-        setToast({ message: 'Alert email sent to parent successfully.', type: 'info' });
-      } else {
-        setToast({ message: 'Failed to send alert email to parent.' + (emailData.error ? ` Error: ${emailData.error}` : ''), type: 'error' });
-      }
-    } catch (err) {
-      setToast({ message: 'Failed to send alert email: ' + (err.message || err), type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
     const filtered = bookings.filter(booking => {
@@ -320,30 +253,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
                   <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {selectedStatus === 'waiting' && (
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => processBookingAction(booking.id, 'confirm')}
-                        className="confirm-button"
-                        disabled={loading}
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => processBookingAction(booking.id, 'reject')}
-                        className="reject-button"
-                        disabled={loading}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                  {selectedStatus === 'still_out' && (
-                    <div className="still-out-actions">
-                      <button onClick={() => processBookingAction(booking.id, 'confirm')} className="confirm-button" disabled={loading}>In</button>
-                      <button onClick={() => sendStillOutAlert(booking)} className="reject-button" disabled={loading}>Alert</button>
-                    </div>
-                  )}
+                  {/* Booking actions and details end here */}
                 </div>
               </div>
             </div>

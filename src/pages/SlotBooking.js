@@ -12,29 +12,6 @@ import {
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
 
-// --- Caching helpers ---
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-
-function getCached(key) {
-  const item = sessionStorage.getItem(key);
-  if (!item) return null;
-  try {
-    const { value, expiry } = JSON.parse(item);
-    if (expiry && Date.now() > expiry) {
-      sessionStorage.removeItem(key);
-      return null;
-    }
-    return value;
-  } catch {
-    sessionStorage.removeItem(key);
-    return null;
-  }
-}
-
-function setCached(key, value, expiryMs) {
-  sessionStorage.setItem(key, JSON.stringify({ value, expiry: expiryMs ? Date.now() + expiryMs : null }));
-}
-
 const SlotBooking = () => {
   // Form state
   const [bookingForm, setBookingForm] = useState({
@@ -72,62 +49,50 @@ const SlotBooking = () => {
     
     const initializeUser = async () => {
       try {
-        // Try cache first
-        let cachedUser = getCached('userInfo');
-        let cachedAdmin = getCached('adminInfo');
-        let user, email;
-        if (!cachedUser) {
-          const { data: { user: supaUser } } = await supabase.auth.getUser();
-          if (!supaUser) return;
-          user = supaUser;
-          setCached('userInfo', user);
-        } else {
-          user = cachedUser;
-        }
-        email = user.email;
-        let name = user.user_metadata?.full_name || user.email;
-        let department = '';
-        let parentEmail = '';
-        let parentPhone = '';
-        // Admin info
-        let adminInfo = cachedAdmin;
-        if (!adminInfo) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          let name = user.user_metadata?.full_name || user.email;
+          let email = user.email;
+          let department = '';
+          let parentEmail = '';
+          let parentPhone = '';
+          // Check if user is admin
+          let adminInfo = null;
           try {
             adminInfo = await fetchAdminInfoByEmail(email);
-            setCached('adminInfo', adminInfo);
-          } catch (e) { adminInfo = null; }
-        }
-        setIsAdmin(!!adminInfo);
-        // Student info: always fetch fresh
-        let info = null;
-        try {
-          info = await fetchStudentInfoByEmail(email);
-        } catch (e) { info = null; }
-        if (info) {
-          department = info.hostel_name;
-          parentEmail = info.parent_email || '';
-          parentPhone = info.parent_phone || '';
-          setStudentInfoExists(true);
-        } else {
-          setStudentInfoExists(false);
-        }
-        setBookingForm(prev => ({
-          ...prev,
-          email,
-          name,
-          department,
-          parentEmail,
-          parentPhone
-        }));
-        // Ban check and auto-unban (not cached for safety)
-        const ban = await checkAndAutoUnban(email);
-        setBanInfo(ban);
-        // Bookings cache
-        let cachedBookings = getCached('userBookings');
-        if (cachedBookings) {
-          setBookedSlots(cachedBookings);
-        } else if (user.email) {
-          await fetchUserBookings(user.email, true); // true = cache result
+            setIsAdmin(!!adminInfo);
+          } catch (e) {
+            setIsAdmin(false);
+          }
+          // Try to fetch student info from admin table
+          let info = null;
+          try {
+            info = await fetchStudentInfoByEmail(email);
+            if (info) {
+              department = info.hostel_name;
+              parentEmail = info.parent_email || '';
+              parentPhone = info.parent_phone || '';
+              setStudentInfoExists(true);
+            } else {
+              setStudentInfoExists(false);
+            }
+          } catch (e) {
+            setStudentInfoExists(false);
+          }
+          setBookingForm(prev => ({
+            ...prev,
+            email,
+            name,
+            department,
+            parentEmail,
+            parentPhone
+          }));
+          // Ban check and auto-unban
+          const ban = await checkAndAutoUnban(email);
+          setBanInfo(ban);
+          if (user.email) {
+            await fetchUserBookings(user.email);
+          }
         }
       } catch (error) {
         console.error('Error initializing user:', error);
@@ -360,7 +325,7 @@ const SlotBooking = () => {
   };
 
   // Fetch booked slots for a user
-  const fetchUserBookings = async (email, shouldCache = false) => {
+  const fetchUserBookings = async (email) => {
     try {
       setLoading(true);
       const bookingsData = await fetchBookedSlots(email);
@@ -370,7 +335,6 @@ const SlotBooking = () => {
       
       // Clear any existing error
       setError('');
-      if (shouldCache) setCached('userBookings', bookingsData, CACHE_EXPIRY_MS);
     } catch (error) {
       console.error('Error fetching user bookings:', error);
       // Don't set error if it's just that there are no bookings yet
