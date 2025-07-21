@@ -9,7 +9,6 @@ import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturne
  * @returns {Error} - Formatted error
  */
 const handleError = (error) => {
-  console.error('API error:', error);
   return new Error(error.message || 'An error occurred with the Supabase request');
 };
 
@@ -166,12 +165,10 @@ export const fetchPendingBookings = async (adminEmail) => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Supabase error fetching outing requests:', error);
       throw new Error(`Failed to fetch outing requests: ${error.message}`);
     }
     
     if (!data) {
-      console.error('No data returned from outing requests query');
       throw new Error('No outing request data available');
     }
     
@@ -239,7 +236,6 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
       .eq('id', bookingId)
       .select();
     if (error) {
-      console.error('Supabase update error:', error);
       throw new Error(`Supabase error: ${error.message || error}`);
     }
 
@@ -287,7 +283,6 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
       emailResult
     };
   } catch (error) {
-    console.error('handleBookingAction error:', error);
     throw handleError(error);
   }
 };
@@ -422,7 +417,6 @@ export const authenticateWarden = async (username, password) => {
       .eq('username', username)
       // .eq('role', 'warden') // Temporarily removed for debugging
       .maybeSingle();
-    console.log('Supabase warden query:', { data, error, username, password }); // Debug log
     if (error && error.code !== 'PGRST116') throw error;
     if (!data) return null;
     if (data.password !== password) return null;

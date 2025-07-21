@@ -210,7 +210,6 @@ const SlotBooking = () => {
     
     try {
       const response = await fetchAvailableSeats(selectedDate, selectedLab);
-      console.log('Available slots response:', response);
       
       if (response && response.availableSlots) {
         // Transform the data for the UI
@@ -301,9 +300,6 @@ const SlotBooking = () => {
         parentPhone: bookingForm.parentPhone, // Ensure parentPhone is included
         status: 'waiting' // Ensure status is set
       };
-
-      // Log the data being sent
-      console.log('Booking data sent:', bookingData);
 
       // Make the booking request
       const response = await bookSlot(bookingData);

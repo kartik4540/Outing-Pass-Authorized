@@ -27,8 +27,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
-  console.log('wardenHostels:', wardenHostels);
-
   useEffect(() => {
     if (wardenLoggedIn) {
       fetchAllBookings(wardenEmail);
@@ -60,8 +58,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
-      // Debug log: print all bookings fetched
-      console.log('Fetched bookings:', bookingsData.map(b => ({id: b.id, status: b.status, hostel: b.hostel_name, email: b.email})));
       if (!Array.isArray(bookingsData)) {
         setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
         setLoading(false);
@@ -184,7 +180,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       }
       return true;
     });
-    console.log('hostelFilteredBookings:', filtered);
     return filtered;
   }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
@@ -202,7 +197,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         counts[status]++;
       }
     });
-    console.log('tabCounts:', counts);
     return counts;
   }, [hostelFilteredBookings]);
 

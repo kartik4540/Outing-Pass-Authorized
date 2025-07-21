@@ -52,7 +52,6 @@ const AdminStudentInfo = () => {
     setError('');
     try {
       const data = await fetchAllStudentInfo();
-      console.log('Fetched student info:', data); // DEBUG LOG
       setStudentInfo(data || []);
     } catch (err) {
       setError(err.message || 'Failed to fetch student info');
@@ -98,7 +97,6 @@ const AdminStudentInfo = () => {
     setSuccess('');
     try {
       const upsertResult = await addOrUpdateStudentInfo(form, adminEmail);
-      console.log('Upsert result:', upsertResult); // DEBUG LOG
       setSuccess('Student info saved!');
       setEditing(null);
       setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
@@ -244,8 +242,6 @@ const AdminStudentInfo = () => {
     }
     return matchesSearch;
   }), [studentInfo, search, wardenLoggedIn, wardenHostels]);
-
-  console.log('banStatuses:', banStatuses); // DEBUG LOG
 
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
