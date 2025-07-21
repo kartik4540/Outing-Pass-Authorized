@@ -8,7 +8,8 @@ import {
     fetchAdminInfoByEmail, 
     fetchAllBans, 
     deleteBan,
-    checkAndAutoUnban
+    checkAndAutoUnban,
+    fetchStudentBans
 } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
@@ -264,7 +265,7 @@ const AdminStudentInfo = () => {
             const activeBan = await fetchStudentBans(student_email);
             if (activeBan && activeBan.length > 0) {
                 await deleteBan(activeBan[0].id);
-                setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Use setToast
+                setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Corrected
                 fetchBans();
             } else {
                 setToast({ message: 'No active ban found for this student.', type: 'error' });
