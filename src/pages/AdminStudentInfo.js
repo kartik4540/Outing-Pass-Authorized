@@ -125,7 +125,7 @@ const Row = React.memo(({ data, index, style }) => {
 const AdminStudentInfo = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
-    studentInfo, editing, form, loading, error, success, search, adminEmail,
+    studentInfo, editing, form, loading, error, success, search, searchTerm, adminEmail,
     adminRole, uploadMessage, uploadError, banModal, banStatuses, unbanLoading, page, hasMore
   } = state;
 
