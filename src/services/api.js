@@ -321,12 +321,16 @@ export const updateBookingInTime = async (bookingId, newInTime) => {
  * @returns {Promise<Object>} - inserted/updated row
  */
 export async function addOrUpdateStudentInfo(info) {
-    const { data, error } = await supabase
-      .from('student_info')
-    .upsert([info], { onConflict: ['student_email'] });
-    if (error) throw error;
+  // Convert all string fields to lowercase
+  const lowerInfo = Object.fromEntries(
+    Object.entries(info).map(([k, v]) => [k, typeof v === 'string' ? v.toLowerCase() : v])
+  );
+  const { data, error } = await supabase
+    .from('student_info')
+    .upsert([lowerInfo], { onConflict: ['student_email'] });
+  if (error) throw error;
   return data;
-  }
+}
 
 /**
  * Fetch all student info (admin only)

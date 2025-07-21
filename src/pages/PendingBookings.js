@@ -66,7 +66,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const statusToUse = status || selectedStatus;
       const filteredBookings = statusToUse === 'all'
         ? bookingsData 
-        : bookingsData.filter(booking => booking.status === statusToUse);
+        : bookingsData.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
       setBookings(filteredBookings);
       const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
       const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
@@ -185,10 +185,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels, startDate, endDate]);
 
   const filteredCounts = useMemo(() => ({
-    waiting: filteredBookings.filter(b => b.status === 'waiting').length,
-    still_out: filteredBookings.filter(b => b.status === 'still_out').length,
-    confirmed: filteredBookings.filter(b => b.status === 'confirmed').length,
-    rejected: filteredBookings.filter(b => b.status === 'rejected').length,
+    waiting: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
+    still_out: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
+    confirmed: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
+    rejected: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
   }), [filteredBookings]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
