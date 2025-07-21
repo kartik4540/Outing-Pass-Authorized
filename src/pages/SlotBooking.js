@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useCallback, useReducer } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback, useReducer } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   bookSlot, 
   fetchBookedSlots, 
   deleteBookedSlot, 
   checkApiHealth,
+  fetchPendingBookings,
+  handleBookingAction,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail,
   checkAndAutoUnban
@@ -34,18 +36,29 @@ const initialState = {
   studentInfoExists: true,
   banInfo: null,
   blockBooking: false,
+  waitingBooking: null
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_FIELD':
       return { ...state, [action.field]: action.value };
+    case 'SET_BOOKING_FORM':
+      return { ...state, bookingForm: action.payload };
     case 'SET_BOOKING_FIELD':
       return { ...state, bookingForm: { ...state.bookingForm, [action.field]: action.value } };
     case 'RESET_BOOKING_FORM':
-      return { ...state, bookingForm: { ...initialState.bookingForm, email: state.bookingForm.email, name: state.bookingForm.name, department: state.bookingForm.department, parentEmail: state.bookingForm.parentEmail, parentPhone: state.bookingForm.parentPhone } };
-    case 'SET_USER_DATA':
-      return { ...state, user: action.payload.user, isAdmin: action.payload.isAdmin, studentInfoExists: action.payload.studentInfoExists, bookingForm: { ...state.bookingForm, ...action.payload.formDetails } };
+      return { ...state, bookingForm: { ...initialState.bookingForm, email: state.bookingForm.email } };
+    case 'SET_USER_INFO':
+      return { ...state, user: action.payload.user, bookingForm: { ...state.bookingForm, ...action.payload.formDetails } };
+    case 'SET_BOOKINGS':
+      return { ...state, bookedSlots: action.payload.bookings, bookingCounts: action.payload.counts };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload, success: '' };
+    case 'SET_SUCCESS':
+      return { ...state, success: action.payload, error: '' };
     default:
       return state;
   }
@@ -55,20 +68,27 @@ const SlotBooking = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
     bookingForm, loading, bookedSlots, error, success, apiError, user, isAdmin,
-    studentInfoExists, banInfo, blockBooking
+    studentInfoExists, banInfo, blockBooking, waitingBooking
   } = state;
 
-  const navigate = useNavigate();
-
   const fetchUserBookings = useCallback(async (email) => {
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+    dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const bookingsData = await fetchBookedSlots(email);
-      dispatch({ type: 'SET_FIELD', field: 'bookedSlots', value: bookingsData || [] });
+      dispatch({ 
+        type: 'SET_BOOKINGS', 
+        payload: {
+          bookings: bookingsData || [],
+          counts: bookingsData?.counts || { waiting: 0, confirmed: 0, rejected: 0 }
+        }
+      });
+      dispatch({ type: 'SET_ERROR', payload: '' });
     } catch (err) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: err.message || 'Failed to fetch bookings' });
+      if (err.message !== 'No bookings found') {
+        dispatch({ type: 'SET_ERROR', payload: '' });
+      }
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, []);
 
@@ -99,7 +119,7 @@ const SlotBooking = () => {
             dispatch({ type: 'SET_FIELD', field: 'studentInfoExists', value: false });
           }
           dispatch({ 
-            type: 'SET_USER_DATA', 
+            type: 'SET_USER_INFO', 
             payload: { 
               user, 
               formDetails: { email, name, department, parentEmail, parentPhone } 
@@ -134,24 +154,26 @@ const SlotBooking = () => {
   const handleBookingChange = useCallback((e) => {
     const { name, value } = e.target;
     if (name === 'email') return;
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     dispatch({ type: 'SET_BOOKING_FIELD', field: name, value });
   }, []);
 
   const handleRetryConnection = async () => {
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+    dispatch({ type: 'SET_LOADING', payload: true });
     const isHealthy = await checkApiHealth();
     dispatch({ type: 'SET_FIELD', field: 'apiError', value: !isHealthy });
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+    dispatch({ type: 'SET_LOADING', payload: false });
   };
 
   const handleBookingSubmit = useCallback(async (e) => {
     e.preventDefault();
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
-    dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
-    dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     if ((bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out')) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'You already have a pending or active outing request.' });
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      dispatch({ type: 'SET_ERROR', payload: 'You already have a pending or active outing request.' });
+      dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
     try {
@@ -176,54 +198,54 @@ const SlotBooking = () => {
       };
       const response = await bookSlot(bookingData);
       if (response.success) {
-        dispatch({ type: 'SET_FIELD', field: 'success', value: 'Request submitted successfully!' });
+        dispatch({ type: 'SET_SUCCESS', payload: 'Request submitted successfully!' });
         dispatch({ type: 'RESET_BOOKING_FORM' });
         await fetchUserBookings(bookingForm.email);
       } else {
         throw new Error(response.error || 'Failed to create booking.');
       }
     } catch (error) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: error.message || 'Failed to create booking.' });
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to create booking.' });
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [bookingForm, fetchUserBookings, bookedSlots]);
 
   const handleDeleteBooking = useCallback(async (bookingId) => {
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
-    dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
-    dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(bookingId);
-      dispatch({ type: 'SET_FIELD', field: 'success', value: 'Booking deleted successfully. You can now make a new request.' });
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: err.message || 'Failed to delete booking' });
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [bookingForm.email, fetchUserBookings]);
 
   const handleDeleteWaiting = useCallback(async () => {
     if (!waitingBooking) return;
-    dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
-    dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
-    dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(waitingBooking.id);
-      dispatch({ type: 'SET_FIELD', field: 'success', value: 'Booking deleted successfully. You can now make a new request.' });
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: err.message || 'Failed to delete booking' });
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [waitingBooking, bookingForm.email, fetchUserBookings]);
 
   const latestOtpBooking = useMemo(() =>
     (bookedSlots || [])
       .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
-      .sort((a, b) => new Date(b.handled_at) - new Date(a.handled_at))[0]
+      .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
   , [bookedSlots]);
 
   const currentBooking = useMemo(() =>

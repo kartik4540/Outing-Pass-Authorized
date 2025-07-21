@@ -1,143 +1,27 @@
-import React, { useEffect, useMemo, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FixedSizeList as List } from 'react-window';
-import { fetchPendingBookings, handleBookingAction, updateBookingInTime, fetchAllBans } from '../services/api';
+import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
 
-const initialState = {
-  bookings: [],
-  selectedStatus: 'waiting',
-  loading: true,
-  error: null,
-  success: null,
-  counts: { waiting: 0, still_out: 0, confirmed: 0, rejected: 0 },
-  editInTime: {},
-  savingInTimeId: null,
-  startDate: '',
-  endDate: '',
-  user: null,
-  toast: { message: '', type: 'info' },
-  banStatuses: {},
-  page: 0,
-  hasMore: true,
-};
-
-function reducer(state, action) {
-  switch (action.type) {
-    case 'SET_FIELD':
-      return { ...state, [action.field]: action.value };
-    case 'SET_BOOKINGS':
-      return { ...state, bookings: action.payload };
-    case 'LOAD_MORE_BOOKINGS':
-      return { ...state, bookings: [...state.bookings, ...action.payload], page: state.page + 1 };
-    case 'SET_HAS_MORE':
-      return { ...state, hasMore: action.payload };
-    default:
-      return state;
-  }
-}
-
-const BookingRow = React.memo(({ data, index, style }) => {
-  const {
-    filteredBookings, selectedStatus, loading, banStatuses, editInTime, savingInTimeId,
-    handleProcessBookingConfirm, handleProcessBookingReject, handleSaveInTimeFactory,
-    handleSendStillOutAlertFactory, handleInTimeChangeFactory, handleProcessBookingStillOutConfirmFactory
-  } = data;
-
-  if (index === filteredBookings.length) {
-    return data.hasMore ? <div style={style}>Loading...</div> : null;
-  }
-
-  const booking = filteredBookings[index];
-  return (
-    <div style={style}>
-      <div key={booking.id} className="booking-card">
-        <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
-        <div className="booking-info">
-          <div className="info-group">
-            <h3>User Details</h3>
-            <p><strong>Name:</strong> {booking.name}</p>
-            <p><strong>Email:</strong> {booking.email}
-              {banStatuses[booking.email] && (
-                <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 8px', fontWeight: 600, marginLeft: 6, fontSize: 12 }}>BANNED</span>
-              )}
-            </p>
-            <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
-            <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
-          </div>
-          <div className="info-group">
-            <h3>Booking Details</h3>
-            <p><strong>Out Date:</strong> {booking.out_date}</p>
-            <p><strong>Out Time:</strong> {booking.out_time}</p>
-            <p><strong>In Date:</strong> {booking.in_date}</p>
-            {selectedStatus === 'waiting' ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
-                <input
-                  id={`inTime-${booking.id}`}
-                  type="time"
-                  value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                  onChange={handleInTimeChangeFactory(booking.id)}
-                  disabled={savingInTimeId === booking.id}
-                  style={{ width: '120px' }}
-                />
-                <button
-                  onClick={handleSaveInTimeFactory(booking.id)}
-                  disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
-                  style={{ padding: '4px 10px', fontSize: '0.95em' }}
-                >
-                  {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            ) : (
-            <p><strong>In Time:</strong> {booking.in_time}</p>
-            )}
-            {booking.handled_by && booking.status !== 'waiting' && (
-              <p className="handled-time">
-                <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
-              </p>
-            )}
-          </div>
-        </div>
-        {selectedStatus === 'waiting' && (
-          <div className="action-buttons">
-            <button
-              onClick={handleProcessBookingConfirm(booking.id)}
-              className="confirm-button"
-              disabled={loading}
-            >
-              Confirm
-            </button>
-            <button
-              onClick={handleProcessBookingReject(booking.id)}
-              className="reject-button"
-              disabled={loading}
-            >
-              Reject
-            </button>
-          </div>
-        )}
-        {selectedStatus === 'still_out' && (
-          <div className="still-out-actions">
-            <button onClick={handleProcessBookingStillOutConfirmFactory(booking.id)} className="in-btn">In</button>
-            <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
-
 const PendingBookings = ({ adminRole, adminHostels }) => {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const {
-    bookings, selectedStatus, loading, error, success, counts, editInTime, savingInTimeId,
-    startDate, endDate, user, toast, banStatuses, page, hasMore
-  } = state;
-
+  const [bookings, setBookings] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState('waiting');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [counts, setCounts] = useState({ waiting: 0, still_out: 0, confirmed: 0, rejected: 0 });
+  const [editInTime, setEditInTime] = useState({});
+  const [savingInTimeId, setSavingInTimeId] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [user, setUser] = useState(null);
+  const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
+  const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
+
+  // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
@@ -153,72 +37,89 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         statuses[ban.student_email] = ban;
       }
     }
-    dispatch({ type: 'SET_FIELD', field: 'banStatuses', value: statuses });
+    setBanStatuses(statuses);
   }, []); // `fetchAllBans` is from API (stable), `setBanStatuses` is a setState dispatch (stable)
 
-  const fetchAllBookings = useCallback(async (adminEmail, status, page = 0) => {
+  const fetchAllBookings = useCallback(async (adminEmail, status) => {
     try {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
-      const bookingsData = await fetchPendingBookings(adminEmail, page * 10, 10, status) || []; // Temporarily fetch up to 1000
-      dispatch({ type: 'SET_BOOKINGS', payload: bookingsData });
-      // This is now less accurate as it's only for the fetched page.
-      // A separate count query would be needed for total accuracy.
+      setLoading(true);
+      const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      // Debug log: print all bookings fetched
+      console.log('Fetched bookings:', bookingsData.map(b => ({id: b.id, status: b.status, hostel: b.hostel_name, email: b.email})));
+      if (!Array.isArray(bookingsData)) {
+        setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
+        setLoading(false);
+        return;
+      }
+      const statusToUse = status || selectedStatus;
+      const filteredBookings = statusToUse === 'all'
+        ? bookingsData 
+        : bookingsData.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
+      setBookings(filteredBookings);
       const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
       const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
       const confirmed = bookingsData.filter(booking => booking.status === 'confirmed').length;
       const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
-      dispatch({ type: 'SET_FIELD', field: 'counts', value: { waiting, still_out, confirmed, rejected } });
-      dispatch({ type: 'SET_HAS_MORE', payload: bookingsData.length === 10 }); // Assuming 10 items per page
-      dispatch({ type: 'SET_FIELD', field: 'page', value: page + 1 });
-      dispatch({ type: 'SET_FIELD', field: 'error', value: null });
+      setCounts({ waiting, still_out, confirmed, rejected });
+      setError(null);
       await fetchBans();
     } catch (error) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to fetch bookings: ' + (error.message || JSON.stringify(error)) });
+      setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
+      console.error('FetchAllBookings error:', error);
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      setLoading(false);
     }
-  }, [fetchBans]);
+  }, [selectedStatus, fetchBans]);
 
-  const loadMoreBookings = useCallback(async () => {
-    if (hasMore && !loading) {
-      await fetchAllBookings(user?.email, selectedStatus, page);
+  const checkAdminAndFetchBookings = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      if (!adminRole) {
+        navigate('/');
+        return;
+      }
+      await fetchAllBookings(user.email);
+    } catch (error) {
+      console.error('Error in checkAdminAndFetchBookings:', error);
+      setError('Failed to authenticate');
     }
-  }, [fetchAllBookings, user, selectedStatus, page, hasMore, loading]);
+  }, [navigate, adminRole, fetchAllBookings]);
 
   useEffect(() => {
-    const checkAdminAndFetchBookings = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        dispatch({ type: 'SET_FIELD', field: 'user', value: user });
-        if (!user) {
-          navigate('/login');
-          return;
-        }
-        if (!adminRole) {
-          navigate('/');
-          return;
-        }
-        await fetchAllBookings(user.email, selectedStatus, 0);
-      } catch (error) {
-        dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to authenticate' });
-      }
-    };
-
     if (wardenLoggedIn) {
-      fetchAllBookings(wardenEmail, selectedStatus, 0);
+      fetchAllBookings(wardenEmail);
     } else {
       checkAdminAndFetchBookings();
     }
-  }, [wardenLoggedIn, wardenEmail, adminRole, selectedStatus, fetchAllBookings, navigate, user, page]);
+  }, [wardenLoggedIn, wardenEmail, checkAdminAndFetchBookings, fetchAllBookings]);
 
   const handleStatusChange = useCallback(async (status) => {
-    dispatch({ type: 'SET_FIELD', field: 'selectedStatus', value: status });
-    // Data will be refetched by the useEffect hook above
-  }, []);
+    setSelectedStatus(status);
+    try {
+      setLoading(true);
+      if (wardenLoggedIn) {
+        await fetchAllBookings(wardenEmail, status);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        await fetchAllBookings(user.email, status);
+      }
+      setError(null);
+    } catch (error) {
+      setError('Failed to filter bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
   const processBookingAction = useCallback(async (bookingId, action) => {
     try {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+      setLoading(true);
       let emailToUse = wardenLoggedIn ? wardenEmail : null;
       if (!wardenLoggedIn) {
         const { data: { user } } = await supabase.auth.getUser();
@@ -234,50 +135,50 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const result = await handleBookingAction(bookingId, newStatus, emailToUse);
       // Only switch tab if confirming, not for rejection
       if (newStatus === 'still_out' || newStatus === 'confirmed') {
-      dispatch({ type: 'SET_FIELD', field: 'selectedStatus', value: newStatus });
-      await fetchAllBookings(emailToUse, newStatus, page);
+      setSelectedStatus(newStatus);
+      await fetchAllBookings(emailToUse, newStatus);
       } else {
         // For rejection, stay on current tab and just refresh
-        await fetchAllBookings(emailToUse, selectedStatus, page);
+        await fetchAllBookings(emailToUse, selectedStatus);
       }
-      dispatch({ type: 'SET_FIELD', field: 'success', value: `Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.` });
+      setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
         if (result.emailResult.sent) {
-          dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: 'Email sent to parent successfully.', type: 'info' } });
+          setToast({ message: 'Email sent to parent successfully.', type: 'info' });
         } else {
-          dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' } });
+          setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
         }
       }
       await fetchBans();
     } catch (error) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to process booking action.' });
+      setError('Failed to process booking action.');
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      setLoading(false);
     }
-  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, fetchBans, handleBookingAction, page]);
+  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, fetchBans, handleBookingAction]);
 
   const handleInTimeChange = useCallback((bookingId, value) => {
-    dispatch({ type: 'SET_FIELD', field: 'editInTime', value: { ...editInTime, [bookingId]: value } });
-  }, [editInTime]);
+    setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
+  }, []);
 
   const handleSaveInTime = useCallback(async (bookingId) => {
-    dispatch({ type: 'SET_FIELD', field: 'savingInTimeId', value: bookingId });
+    setSavingInTimeId(bookingId);
     try {
       const newInTime = editInTime[bookingId];
       await updateBookingInTime(bookingId, newInTime);
       if (wardenLoggedIn) {
-        await fetchAllBookings(wardenEmail, selectedStatus, page);
+        await fetchAllBookings(wardenEmail, selectedStatus);
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        await fetchAllBookings(user.email, selectedStatus, page);
+        await fetchAllBookings(user.email, selectedStatus);
       }
-      dispatch({ type: 'SET_FIELD', field: 'success', value: 'In Time updated successfully.' });
+      setSuccess('In Time updated successfully.');
     } catch (error) {
-      dispatch({ type: 'SET_FIELD', field: 'error', value: 'Failed to update In Time.' });
+      setError('Failed to update In Time.');
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'savingInTimeId', value: null });
+      setSavingInTimeId(null);
     }
-  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, page]);
+  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
 
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
@@ -329,7 +230,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: true });
+      setLoading(true);
       // Send custom email to parent
       const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
       const html = `
@@ -349,21 +250,21 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       });
       const emailData = await emailRes.json();
       if (emailRes.ok && !emailData.error) {
-        dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: 'Alert email sent to parent successfully.', type: 'info' } });
+        setToast({ message: 'Alert email sent to parent successfully.', type: 'info' });
       } else {
-        dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: 'Failed to send alert email to parent.' + (emailData.error ? ` Error: ${emailData.error}` : ''), type: 'error' } });
+        setToast({ message: 'Failed to send alert email to parent.' + (emailData.error ? ` Error: ${emailData.error}` : ''), type: 'error' });
       }
     } catch (err) {
-      dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: 'Failed to send alert email: ' + (err.message || err), type: 'error' } });
+      setToast({ message: 'Failed to send alert email: ' + (err.message || err), type: 'error' });
     } finally {
-      dispatch({ type: 'SET_FIELD', field: 'loading', value: false });
+      setLoading(false);
     }
   }, []);
 
   const handleStatusChangeFactory = useCallback((status) => () => handleStatusChange(status), [handleStatusChange]);
-  const handleStartDateChange = useCallback((e) => dispatch({ type: 'SET_FIELD', field: 'startDate', value: e.target.value }), []);
-  const handleEndDateChange = useCallback((e) => dispatch({ type: 'SET_FIELD', field: 'endDate', value: e.target.value }), []);
-  const handleToastClose = useCallback(() => dispatch({ type: 'SET_FIELD', field: 'toast', value: { message: '', type: 'info' } }), []);
+  const handleStartDateChange = useCallback((e) => setStartDate(e.target.value), []);
+  const handleEndDateChange = useCallback((e) => setEndDate(e.target.value), []);
+  const handleToastClose = useCallback(() => setToast({ message: '', type: 'info' }), []);
   const handleInTimeChangeFactory = useCallback((id) => (e) => handleInTimeChange(id, e.target.value), [handleInTimeChange]);
   const handleProcessBookingStillOutConfirmFactory = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
 
@@ -373,7 +274,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const handleSaveInTimeFactory = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
   const handleSendStillOutAlertFactory = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
 
-  if (loading && page === 0) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
+  if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
     <div className="pending-bookings-page">
@@ -421,25 +322,83 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       </div>
       
       {filteredBookings.length > 0 ? (
-        <List
-          height={600}
-          itemCount={filteredBookings.length + (hasMore ? 1 : 0)}
-          itemSize={250} // Adjust as needed
-          width={'100%'}
-          itemData={{
-            filteredBookings, selectedStatus, loading, banStatuses, editInTime, savingInTimeId,
-            handleProcessBookingConfirm, handleProcessBookingReject, handleSaveInTimeFactory,
-            handleSendStillOutAlertFactory, handleInTimeChangeFactory, handleProcessBookingStillOutConfirmFactory,
-            hasMore
-          }}
-          onScroll={({ scrollDirection, scrollOffset }) => {
-            if (scrollDirection === 'forward' && scrollOffset > (filteredBookings.length - 5) * 250) {
-              loadMoreBookings();
-            }
-          }}
-        >
-          {BookingRow}
-        </List>
+        <div className="bookings-list">
+          {filteredBookings.map(booking => (
+            <div key={booking.id} className="booking-card">
+              <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
+              <div className="booking-info">
+                <div className="info-group">
+                  <h3>User Details</h3>
+                  <p><strong>Name:</strong> {booking.name}</p>
+                  <p><strong>Email:</strong> {booking.email}
+                    {banStatuses[booking.email] && (
+                      <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 8px', fontWeight: 600, marginLeft: 6, fontSize: 12 }}>BANNED</span>
+                    )}
+                  </p>
+                  <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
+                  <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
+                </div>
+                <div className="info-group">
+                  <h3>Booking Details</h3>
+                  <p><strong>Out Date:</strong> {booking.out_date}</p>
+                  <p><strong>Out Time:</strong> {booking.out_time}</p>
+                  <p><strong>In Date:</strong> {booking.in_date}</p>
+                  {selectedStatus === 'waiting' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
+                      <input
+                        id={`inTime-${booking.id}`}
+                        type="time"
+                        value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
+                        onChange={handleInTimeChangeFactory(booking.id)}
+                        disabled={savingInTimeId === booking.id}
+                        style={{ width: '120px' }}
+                      />
+                      <button
+                        onClick={handleSaveInTimeFactory(booking.id)}
+                        disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
+                        style={{ padding: '4px 10px', fontSize: '0.95em' }}
+                      >
+                        {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                  <p><strong>In Time:</strong> {booking.in_time}</p>
+                  )}
+                  {booking.handled_by && booking.status !== 'waiting' && (
+                    <p className="handled-time">
+                      <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {selectedStatus === 'waiting' && (
+                <div className="action-buttons">
+                  <button
+                    onClick={handleProcessBookingConfirm(booking.id)}
+                    className="confirm-button"
+                    disabled={loading}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={handleProcessBookingReject(booking.id)}
+                    className="reject-button"
+                    disabled={loading}
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {selectedStatus === 'still_out' && (
+                <div className="still-out-actions">
+                  <button onClick={handleProcessBookingStillOutConfirmFactory(booking.id)} className="in-btn">In</button>
+                  <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="no-bookings">No {selectedStatus} requests available</div>
       )}

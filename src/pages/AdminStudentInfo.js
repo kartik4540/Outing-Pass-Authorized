@@ -1,6 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useReducer } from 'react';
-import debounce from 'lodash.debounce';
-import { FixedSizeList as List } from 'react-window';
+import React, { useEffect, useState, useMemo, useCallback, useReducer } from 'react';
 import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
@@ -13,7 +11,6 @@ const initialState = {
   error: '',
   success: '',
   search: '',
-  searchTerm: '',
   adminEmail: '',
   adminRole: '',
   uploadMessage: '',
@@ -21,22 +18,12 @@ const initialState = {
   banModal: { open: false, info: null, from: '', till: '', reason: '' },
   banStatuses: {},
   unbanLoading: {},
-  page: 0,
-  hasMore: true,
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_FIELD':
       return { ...state, [action.field]: action.value };
-    case 'SET_SEARCH_TERM':
-      return { ...state, searchTerm: action.value };
-    case 'SET_STUDENT_INFO':
-      return { ...state, studentInfo: action.payload };
-    case 'LOAD_MORE_STUDENTS':
-      return { ...state, studentInfo: [...state.studentInfo, ...action.payload], page: state.page + 1 };
-    case 'SET_HAS_MORE':
-      return { ...state, hasMore: action.payload };
     case 'SET_FORM_FIELD':
       return { ...state, form: { ...state.form, [action.field]: action.value } };
     case 'START_EDIT':
@@ -64,87 +51,12 @@ function reducer(state, action) {
   }
 }
 
-const Row = React.memo(({ data, index, style }) => {
-  const {
-    filteredInfo, adminRole, wardenLoggedIn, editing, form, loading, banStatuses, unbanLoading,
-    handleEditFactory, handleDeleteFactory, handleBanModalFactory, handleUnbanFactory,
-    handleChange, handleSave, handleCancel
-  } = data;
-
-  if (index === filteredInfo.length) {
-    return data.hasMore ? <div style={style}>Loading...</div> : null;
-  }
-
-  const info = filteredInfo[index];
-  const isEditing = adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id;
-
-  return (
-    <div style={style}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderBottom: '1px solid #eee' }}>
-        {isEditing ? (
-          <>
-            <div style={{ flex: 1, padding: 8 }}><input name="student_email" value={form.student_email} onChange={handleChange} disabled /></div>
-            <div style={{ flex: 1, padding: 8 }}><input name="hostel_name" value={form.hostel_name} onChange={handleChange} /></div>
-            <div style={{ flex: 1, padding: 8 }}><input name="parent_email" value={form.parent_email} onChange={handleChange} /></div>
-            <div style={{ flex: 1, padding: 8 }}><input name="parent_phone" value={form.parent_phone} onChange={handleChange} /></div>
-            <div style={{ flex: 1, padding: 8 }}>{info.updated_by || info.created_by || ''}</div>
-            <div style={{ flex: 1, padding: 8 }}>
-              <button onClick={handleSave} disabled={loading}>Save</button>
-              <button onClick={handleCancel} style={{ marginLeft: 8 }}>Cancel</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ flex: 1, padding: 8 }}>{info.student_email}</div>
-            <div style={{ flex: 1, padding: 8 }}>{info.hostel_name}</div>
-            <div style={{ flex: 1, padding: 8 }}>{info.parent_email}</div>
-            <div style={{ flex: 1, padding: 8 }}>{info.parent_phone || 'N/A'}</div>
-            <div style={{ flex: 1, padding: 8 }}>{info.updated_by || info.created_by || ''}</div>
-            {adminRole === 'superadmin' && !wardenLoggedIn && (
-              <div style={{ flex: 1, padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button onClick={handleEditFactory(info)}>Edit</button>
-                <button onClick={handleDeleteFactory(info)}>Delete</button>
-                <button onClick={handleBanModalFactory(info)}>Ban</button>
-                {banStatuses[info.student_email] && (
-                  <>
-                    <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
-                    <button onClick={handleUnbanFactory(info.student_email)} disabled={unbanLoading[info.student_email]}>
-                      {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-});
-
 const AdminStudentInfo = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
     studentInfo, editing, form, loading, error, success, search, adminEmail,
-    adminRole, uploadMessage, uploadError, banModal, banStatuses, unbanLoading, page, hasMore
+    adminRole, uploadMessage, uploadError, banModal, banStatuses, unbanLoading
   } = state;
-
-  const debouncedSearch = useMemo(
-    () => debounce((value) => dispatch({ type: 'SET_SEARCH_TERM', value }), 300),
-    []
-  );
-
-  const handleSearchChange = (e) => {
-    const { value } = e.target;
-    dispatch({ type: 'SET_FIELD', field: 'search', value });
-    debouncedSearch(value);
-  };
-
-  useEffect(() => {
-    return () => {
-      debouncedSearch.cancel();
-    };
-  }, [debouncedSearch]);
 
   const fetchBans = useCallback(async () => {
     const allBans = await fetchAllBans();
@@ -161,11 +73,8 @@ const AdminStudentInfo = () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
     try {
-      const data = await fetchAllStudentInfo(0); // Fetch initial page
-      dispatch({ type: 'SET_STUDENT_INFO', payload: data || [] });
-      if ((data || []).length < 50) {
-        dispatch({ type: 'SET_HAS_MORE', payload: false });
-      }
+      const data = await fetchAllStudentInfo();
+      dispatch({ type: 'SET_FIELD', field: 'studentInfo', value: data || [] });
       await fetchBans();
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch student info' });
@@ -173,23 +82,6 @@ const AdminStudentInfo = () => {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [fetchBans]);
-
-  const loadMoreStudents = useCallback(async () => {
-    if (loading || !hasMore) return;
-    dispatch({ type: 'SET_LOADING', payload: true });
-    try {
-      const data = await fetchAllStudentInfo(page);
-      if (data && data.length > 0) {
-        dispatch({ type: 'LOAD_MORE_STUDENTS', payload: data });
-      } else {
-        dispatch({ type: 'SET_HAS_MORE', payload: false });
-      }
-    } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch more students' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [loading, hasMore, page]);
 
   useEffect(() => {
     loadStudentInfo();
@@ -258,7 +150,7 @@ const AdminStudentInfo = () => {
     }
   }, [loadStudentInfo]);
 
-  const handleExcelUpload = useCallback(async (event) => {
+  const handleExcelUpload = async (event) => {
     dispatch({ type: 'SET_FIELD', field: 'uploadMessage', value: '' });
     dispatch({ type: 'SET_FIELD', field: 'uploadError', value: '' });
     const file = event.target.files[0];
@@ -290,9 +182,9 @@ const AdminStudentInfo = () => {
     loadStudentInfo();
     if (successCount > 0) dispatch({ type: 'SET_FIELD', field: 'uploadMessage', value: `${successCount} row(s) added/updated successfully.` });
     if (errorCount > 0) dispatch({ type: 'SET_FIELD', field: 'uploadError', value: `${errorCount} row(s) failed to add/update.` });
-  }, [loadStudentInfo]);
+  };
 
-  const handleBanSubmit = useCallback(async () => {
+  const handleBanSubmit = async () => {
     if (!banModal.from || !banModal.till) {
       dispatch({ type: 'SET_ERROR', payload: 'Please select both From and Till dates' });
       return;
@@ -321,7 +213,7 @@ const AdminStudentInfo = () => {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [banModal, adminEmail, fetchBans]);
+  };
 
   const handleUnban = useCallback(async (student_email) => {
     if (!banStatuses[student_email]) return;
@@ -346,7 +238,7 @@ const AdminStudentInfo = () => {
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
   const filteredInfo = useMemo(() => studentInfo.filter(info => {
-    const q = searchTerm.toLowerCase();
+    const q = search.toLowerCase();
     const matchesSearch =
       info.student_email.toLowerCase().includes(q) ||
       info.hostel_name.toLowerCase().includes(q) ||
@@ -355,7 +247,7 @@ const AdminStudentInfo = () => {
       return matchesSearch && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
     }
     return matchesSearch;
-  }), [studentInfo, searchTerm, wardenLoggedIn, wardenHostels]);
+  }), [studentInfo, search, wardenLoggedIn, wardenHostels]);
 
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
@@ -364,7 +256,7 @@ const AdminStudentInfo = () => {
         type="text"
         placeholder="Search by email, hostel, or parent email..."
         value={search}
-        onChange={handleSearchChange}
+        onChange={e => dispatch({ type: 'SET_FIELD', field: 'search', value: e.target.value })}
         style={{ marginBottom: 16, width: '100%', padding: 8, fontSize: 16 }}
       />
       {success && <div style={{ color: 'green', marginBottom: 8 }}>{success}</div>}
@@ -423,24 +315,52 @@ const AdminStudentInfo = () => {
               </td>
             </tr>
           )}
-          <List
-            height={400}
-            itemCount={filteredInfo.length + (hasMore ? 1 : 0)}
-            itemSize={60}
-            width={'100%'}
-            onScroll={({ scrollDirection, scrollOffset }) => {
-              if (scrollDirection === 'forward' && scrollOffset > (filteredInfo.length - 10) * 60) {
-                loadMoreStudents();
-              }
-            }}
-            itemData={{
-              filteredInfo, adminRole, wardenLoggedIn, editing, form, loading, banStatuses, unbanLoading, hasMore,
-              handleEditFactory, handleDeleteFactory, handleBanModalFactory, handleUnbanFactory,
-              handleChange, handleSave, handleCancel
-            }}
-          >
-            {Row}
-          </List>
+          {filteredInfo.map((info) => (
+            adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id ? (
+              <tr key={info.id}>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                  <input name="student_email" value={form.student_email} onChange={handleChange} disabled />
+                </td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                  <input name="hostel_name" value={form.hostel_name} onChange={handleChange} />
+                </td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                  <input name="parent_email" value={form.parent_email} onChange={handleChange} />
+                </td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                  <input name="parent_phone" value={form.parent_phone} onChange={handleChange} />
+                </td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                  <button onClick={handleSave} disabled={loading}>Save</button>
+                  <button onClick={handleCancel} style={{ marginLeft: 8 }}>Cancel</button>
+                </td>
+              </tr>
+            ) : (
+              <tr key={info.id}>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.student_email}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.hostel_name}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_email}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_phone || 'N/A'}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
+                {adminRole === 'superadmin' && !wardenLoggedIn && (
+                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
+                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
+                    <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                    {banStatuses[info.student_email] && (
+                      <>
+                        <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
+                        <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
+                          {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
+                        </button>
+                      </>
+                  )}
+                </td>
+                  )}
+              </tr>
+            )
+          ))}
         </tbody>
       </table>
       </div>
