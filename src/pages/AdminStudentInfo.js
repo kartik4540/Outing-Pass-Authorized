@@ -259,18 +259,22 @@ const AdminStudentInfo = () => {
     }, [uiState.banModal, fetchBans, adminEmail]);
 
     const handleUnban = useCallback(async (student_email) => {
-        if (!banStatuses[student_email]) return;
-        setUnbanLoading(l => ({ ...l, [student_email]: true }));
+        setUnbanLoading(prev => ({ ...prev, [student_email]: true }));
         try {
-          await deleteBan(banStatuses[student_email].id);
-          await fetchBans(); // Call fetchBans after unbanning
-          setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Use setToast
+            const activeBan = await fetchStudentBans(student_email);
+            if (activeBan && activeBan.length > 0) {
+                await deleteBan(activeBan[0].id);
+                setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Use setToast
+                fetchBans();
+            } else {
+                setToast({ message: 'No active ban found for this student.', type: 'error' });
+            }
         } catch (err) {
-          setError(err.message || 'Failed to unban student');
+            setError(err.message || 'Failed to unban student');
         } finally {
-          setUnbanLoading(l => ({ ...l, [student_email]: false }));
+            setUnbanLoading(prev => ({ ...prev, [student_email]: false }));
         }
-    }, [banStatuses, fetchBans]);
+    }, [fetchBans]);
 
     // Add handler factories at the top of the component
     const handleEditFactory = useCallback((info) => () => handleEdit(info), [handleEdit]);
