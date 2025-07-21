@@ -179,6 +179,7 @@ const AdminStudentInfo = () => {
         setError(null);
         try {
             await deleteStudentInfo(info.student_email); // You need to implement this in your API
+            setToast({ message: 'Student info deleted!', type: 'success' }); // Use setToast
             fetchInfo(); // Refresh student list
             fetchBans(); // Call fetchBans after deleting
         } catch (err) {
@@ -189,10 +190,11 @@ const AdminStudentInfo = () => {
     }, [fetchInfo, fetchBans]);
 
     const handleExcelUpload = async (event) => {
-        setUploadMessage('');
-        setUploadError('');
         const file = event.target.files[0];
         if (!file) return;
+
+        setToast({ message: '', type: '' }); // Clear previous messages
+        setLoading(true);
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -218,6 +220,7 @@ const AdminStudentInfo = () => {
           }
         }
         fetchInfo();
+        setLoading(false);
         if (successCount > 0) setToast({ message: `${successCount} row(s) added/updated successfully.`, type: 'success' });
         if (errorCount > 0) setToast({ message: `${errorCount} row(s) failed to add/update.`, type: 'error' });
     };
@@ -261,7 +264,7 @@ const AdminStudentInfo = () => {
         try {
           await deleteBan(banStatuses[student_email].id);
           await fetchBans(); // Call fetchBans after unbanning
-          setSuccess('Student unbanned successfully!');
+          setToast({ message: 'Student unbanned successfully!', type: 'success' }); // Use setToast
         } catch (err) {
           setError(err.message || 'Failed to unban student');
         } finally {
