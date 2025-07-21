@@ -195,7 +195,8 @@ function generateOTP() {
 export const handleBookingAction = async (bookingId, action, adminEmail) => {
   try {
     // action is now the new status: 'still_out', 'confirmed', 'rejected'
-    const newStatus = action;
+    let newStatus = action;
+    if (action === 'reject') newStatus = 'rejected';
     let otp = null;
     let resetOtpUsed = false;
     if (newStatus === 'still_out' || newStatus === 'confirmed') {
