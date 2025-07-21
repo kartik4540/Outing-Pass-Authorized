@@ -117,8 +117,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         newStatus = 'confirmed';
       }
       const result = await handleBookingAction(bookingId, newStatus, emailToUse);
-      setSelectedStatus(newStatus);
-      await fetchAllBookings(emailToUse, newStatus);
+      // Only switch tab if confirming, not for rejection
+      if (newStatus === 'still_out' || newStatus === 'confirmed') {
+        setSelectedStatus(newStatus);
+        await fetchAllBookings(emailToUse, newStatus);
+      } else {
+        // For rejection, stay on current tab and just refresh
+        await fetchAllBookings(emailToUse, selectedStatus);
+      }
       setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
         if (result.emailResult.sent) {
