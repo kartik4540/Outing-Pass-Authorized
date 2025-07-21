@@ -29,34 +29,18 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
 
   console.log('wardenHostels:', wardenHostels);
 
-  useEffect(() => {
-    if (wardenLoggedIn) {
-      fetchAllBookings(wardenEmail);
-    } else {
-      checkAdminAndFetchBookings();
-    }
-  }, []);
-
-  const checkAdminAndFetchBookings = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (!user) {
-        navigate('/login');
-        return;
+  const fetchBans = useCallback(async () => {
+    const allBans = await fetchAllBans();
+    const statuses = {};
+    for (const ban of allBans) {
+      if (!statuses[ban.student_email]) {
+        statuses[ban.student_email] = ban;
       }
-      if (!adminRole) {
-        navigate('/');
-        return;
-      }
-      await fetchAllBookings(user.email);
-    } catch (error) {
-      console.error('Error in checkAdminAndFetchBookings:', error);
-      setError('Failed to authenticate');
     }
-  };
+    setBanStatuses(statuses);
+  }, []); // `fetchAllBans` is from API (stable), `setBanStatuses` is a setState dispatch (stable)
 
-  const fetchAllBookings = async (adminEmail, status) => {
+  const fetchAllBookings = useCallback(async (adminEmail, status) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
@@ -78,25 +62,41 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
       setCounts({ waiting, still_out, confirmed, rejected });
       setError(null);
-      // After fetching bookings, fetch all bans in one call and map by email
-      const fetchBans = async () => {
-        const allBans = await fetchAllBans();
-        const statuses = {};
-        for (const ban of allBans) {
-          if (!statuses[ban.student_email]) {
-            statuses[ban.student_email] = ban;
-          }
-        }
-        setBanStatuses(statuses);
-      };
-      fetchBans();
+      await fetchBans();
     } catch (error) {
       setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
       console.error('FetchAllBookings error:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus, fetchBans]);
+
+  const checkAdminAndFetchBookings = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+      if (!adminRole) {
+        navigate('/');
+        return;
+      }
+      await fetchAllBookings(user.email);
+    } catch (error) {
+      console.error('Error in checkAdminAndFetchBookings:', error);
+      setError('Failed to authenticate');
+    }
+  }, [navigate, adminRole, fetchAllBookings]);
+
+  useEffect(() => {
+    if (wardenLoggedIn) {
+      fetchAllBookings(wardenEmail);
+    } else {
+      checkAdminAndFetchBookings();
+    }
+  }, [wardenLoggedIn, wardenEmail, checkAdminAndFetchBookings, fetchAllBookings]);
 
   const handleStatusChange = useCallback(async (status) => {
     setSelectedStatus(status);
@@ -149,24 +149,13 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
         }
       }
-      // After booking action, fetch all bans in one call and map by email
-      const fetchBans = async () => {
-        const allBans = await fetchAllBans();
-        const statuses = {};
-        for (const ban of allBans) {
-          if (!statuses[ban.student_email]) {
-            statuses[ban.student_email] = ban;
-          }
-        }
-        setBanStatuses(statuses);
-      };
-      fetchBans();
+      await fetchBans();
     } catch (error) {
       setError('Failed to process booking action.');
     } finally {
       setLoading(false);
     }
-  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, handleBookingAction]);
+  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, fetchBans, handleBookingAction]);
 
   const handleInTimeChange = useCallback((bookingId, value) => {
     setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
@@ -272,17 +261,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, []);
 
-  // After fetching bookings, fetch all bans in one call and map by email
-  const fetchBans = useCallback(async () => {
-    const allBans = await fetchAllBans();
-    const statuses = {};
-    for (const ban of allBans) {
-      if (!statuses[ban.student_email]) {
-        statuses[ban.student_email] = ban;
-      }
-    }
-    setBanStatuses(statuses);
-  }, []);
+  const handleStatusChangeFactory = useCallback((status) => () => handleStatusChange(status), [handleStatusChange]);
+  const handleStartDateChange = useCallback((e) => setStartDate(e.target.value), []);
+  const handleEndDateChange = useCallback((e) => setEndDate(e.target.value), []);
+  const handleToastClose = useCallback(() => setToast({ message: '', type: 'info' }), []);
+  const handleInTimeChangeFactory = useCallback((id) => (e) => handleInTimeChange(id, e.target.value), [handleInTimeChange]);
+  const handleProcessBookingStillOutConfirmFactory = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
 
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
@@ -294,7 +278,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
 
   return (
     <div className="pending-bookings-page">
-      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
+      <Toast message={toast.message} type={toast.type} onClose={handleToastClose} />
       <h2>Outing Requests</h2>
       {success && <div className="success-message">{success}</div>}
       {error && <div className="error-message">{error}</div>}
@@ -302,25 +286,25 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       <div className="status-tabs">
         <button
           className={selectedStatus === 'waiting' ? 'active' : ''}
-          onClick={() => handleStatusChange('waiting')}
+          onClick={handleStatusChangeFactory('waiting')}
         >
           Waiting ({tabCounts.waiting})
         </button>
         <button
           className={selectedStatus === 'still_out' ? 'active' : ''}
-          onClick={() => handleStatusChange('still_out')}
+          onClick={handleStatusChangeFactory('still_out')}
         >
           Still Out ({tabCounts.still_out || 0})
         </button>
         <button
           className={selectedStatus === 'confirmed' ? 'active' : ''}
-          onClick={() => handleStatusChange('confirmed')}
+          onClick={handleStatusChangeFactory('confirmed')}
         >
           Confirmed ({tabCounts.confirmed})
         </button>
         <button
           className={selectedStatus === 'rejected' ? 'active' : ''}
-          onClick={() => handleStatusChange('rejected')}
+          onClick={handleStatusChangeFactory('rejected')}
         >
           Rejected ({tabCounts.rejected})
         </button>
@@ -329,11 +313,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
         <div>
           <label>Start Date: </label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <input type="date" value={startDate} onChange={handleStartDateChange} />
         </div>
         <div>
           <label>End Date: </label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <input type="date" value={endDate} onChange={handleEndDateChange} />
         </div>
       </div>
       
@@ -366,7 +350,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                         id={`inTime-${booking.id}`}
                         type="time"
                         value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                        onChange={e => handleInTimeChange(booking.id, e.target.value)}
+                        onChange={handleInTimeChangeFactory(booking.id)}
                         disabled={savingInTimeId === booking.id}
                         style={{ width: '120px' }}
                       />
@@ -408,7 +392,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               )}
               {selectedStatus === 'still_out' && (
                 <div className="still-out-actions">
-                  <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
+                  <button onClick={handleProcessBookingStillOutConfirmFactory(booking.id)} className="in-btn">In</button>
                   <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
                 </div>
               )}

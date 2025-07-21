@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useReducer } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  fetchAvailableSeats, 
   bookSlot, 
   fetchBookedSlots, 
   deleteBookedSlot, 
@@ -15,9 +14,8 @@ import {
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
 
-const SlotBooking = () => {
-  // Form state
-  const [bookingForm, setBookingForm] = useState({
+const initialState = {
+  bookingForm: {
     name: '',
     email: '',
     department: '',
@@ -27,76 +25,108 @@ const SlotBooking = () => {
     inTime: '',
     parentEmail: '',
     parentPhone: ''
-  });
+  },
+  loading: false,
+  bookedSlots: [],
+  error: '',
+  success: '',
+  apiError: false,
+  user: null,
+  isAdmin: false,
+  studentInfoExists: true,
+  banInfo: null,
+  blockBooking: false,
+  waitingBooking: null
+};
 
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [apiError, setApiError] = useState(false);
-  const [selectedSlots, setSelectedSlots] = useState([]); // Changed from selectedSlot to selectedSlots array
-  const [message, setMessage] = useState('');
-  const [user, setUser] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [bookingCounts, setBookingCounts] = useState({ waiting: 0, confirmed: 0, rejected: 0 });
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [studentInfoExists, setStudentInfoExists] = useState(true); // Assume true by default
-  const [banInfo, setBanInfo] = useState(null); // store ban info if banned
-  const [blockBooking, setBlockBooking] = useState(false);
-  const [waitingBooking, setWaitingBooking] = useState(null);
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'SET_BOOKING_FORM':
+      return { ...state, bookingForm: action.payload };
+    case 'SET_BOOKING_FIELD':
+      return { ...state, bookingForm: { ...state.bookingForm, [action.field]: action.value } };
+    case 'RESET_BOOKING_FORM':
+      return { ...state, bookingForm: { ...initialState.bookingForm, email: state.bookingForm.email } };
+    case 'SET_USER_INFO':
+      return { ...state, user: action.payload.user, bookingForm: { ...state.bookingForm, ...action.payload.formDetails } };
+    case 'SET_BOOKINGS':
+      return { ...state, bookedSlots: action.payload.bookings, bookingCounts: action.payload.counts };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload, success: '' };
+    case 'SET_SUCCESS':
+      return { ...state, success: action.payload, error: '' };
+    default:
+      return state;
+  }
+}
 
-  // Check API health and initialize user on component mount
+const SlotBooking = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const {
+    bookingForm, loading, bookedSlots, error, success, apiError, user, isAdmin,
+    studentInfoExists, banInfo, blockBooking, waitingBooking
+  } = state;
+
+  const fetchUserBookings = useCallback(async (email) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const bookingsData = await fetchBookedSlots(email);
+      dispatch({ 
+        type: 'SET_BOOKINGS', 
+        payload: {
+          bookings: bookingsData || [],
+          counts: bookingsData?.counts || { waiting: 0, confirmed: 0, rejected: 0 }
+        }
+      });
+      dispatch({ type: 'SET_ERROR', payload: '' });
+    } catch (err) {
+      if (err.message !== 'No bookings found') {
+        dispatch({ type: 'SET_ERROR', payload: '' });
+      }
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
   useEffect(() => {
     const checkServerHealth = async () => {
       const isHealthy = await checkApiHealth();
-      setApiError(!isHealthy);
+      dispatch({ type: 'SET_FIELD', field: 'apiError', value: !isHealthy });
     };
     
     const initializeUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setUser(user);
           let name = user.user_metadata?.full_name || user.email;
           let email = user.email;
           let department = '';
           let parentEmail = '';
           let parentPhone = '';
-          // Check if user is admin
-          let adminInfo = null;
-          try {
-            adminInfo = await fetchAdminInfoByEmail(email);
-            setIsAdmin(!!adminInfo);
-          } catch (e) {
-            setIsAdmin(false);
+          const adminInfo = await fetchAdminInfoByEmail(email);
+          dispatch({ type: 'SET_FIELD', field: 'isAdmin', value: !!adminInfo });
+          const info = await fetchStudentInfoByEmail(email);
+          if (info) {
+            department = info.hostel_name;
+            parentEmail = info.parent_email || '';
+            parentPhone = info.parent_phone || '';
+            dispatch({ type: 'SET_FIELD', field: 'studentInfoExists', value: true });
+          } else {
+            dispatch({ type: 'SET_FIELD', field: 'studentInfoExists', value: false });
           }
-          // Try to fetch student info from admin table
-          let info = null;
-          try {
-            info = await fetchStudentInfoByEmail(email);
-            if (info) {
-              department = info.hostel_name;
-              parentEmail = info.parent_email || '';
-              parentPhone = info.parent_phone || '';
-              setStudentInfoExists(true);
-            } else {
-              setStudentInfoExists(false);
+          dispatch({ 
+            type: 'SET_USER_INFO', 
+            payload: { 
+              user, 
+              formDetails: { email, name, department, parentEmail, parentPhone } 
             }
-          } catch (e) {
-            setStudentInfoExists(false);
-          }
-          setBookingForm(prev => ({
-            ...prev,
-            email,
-            name,
-            department,
-            parentEmail,
-            parentPhone
-          }));
-          // Ban check and auto-unban
+          });
           const ban = await checkAndAutoUnban(email);
-          setBanInfo(ban);
+          dispatch({ type: 'SET_FIELD', field: 'banInfo', value: ban });
           if (user.email) {
             await fetchUserBookings(user.email);
           }
@@ -109,362 +139,127 @@ const SlotBooking = () => {
     checkServerHealth();
     initializeUser();
     
-    // Set the minimum date to today
     const today = new Date().toISOString().split("T")[0];
     const dateInput = document.getElementById("date");
     if (dateInput) {
       dateInput.setAttribute("min", today);
     }
-  }, []);
+  }, [fetchUserBookings]);
 
-  // Block booking if ANY booking is waiting or still_out
   useEffect(() => {
     const block = (bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out');
-    setBlockBooking(block);
+    dispatch({ type: 'SET_FIELD', field: 'blockBooking', value: block });
   }, [bookedSlots]);
 
-  // Handle booking form input changes
-  const handleBookingChange = useCallback(async (e) => {
+  const handleBookingChange = useCallback((e) => {
     const { name, value } = e.target;
-    
-    // Prevent only email from being changed
-    if (name === 'email') {
-      return;
-    }
-    
-    // Clear previous messages
-    setError('');
-    setSuccess('');
-
-    // Handle date changes with weekend validation
-    if (name === 'date' && value) {
-      if (isDateDisabled(value)) {
-        const nextAvailableDate = getNextAvailableDate(value);
-        setError('Weekends are not available for booking. Next available date selected.');
-        
-        // Update the date input to the next available date
-        e.target.value = nextAvailableDate;
-        
-        setBookingForm(prev => ({
-          ...prev,
-          date: nextAvailableDate,
-          lab: '',
-          timeSlots: []
-        }));
-        setSelectedSlots([]);
-        return;
-      }
-
-      setBookingForm(prev => ({
-        ...prev,
-        date: value,
-        lab: '',  // Reset lab selection when date changes
-        timeSlots: []  // Reset time slots when date changes
-      }));
-      setSelectedSlots([]); // Clear selected slots when date changes
-    } else {
-      // Update form state for other fields
-      setBookingForm(prev => {
-        const updatedForm = {
-          ...prev,
-          [name]: value
-        };
-
-        // Handle lab selection or day order changes
-        if ((name === 'lab') && updatedForm.date) {
-          // Only fetch available seats if we have both lab and day order
-          if (updatedForm.lab) {
-            handleFetchAvailableSeats(updatedForm.date, updatedForm.lab);
-          }
-        }
-
-        return updatedForm;
-      });
-    }
+    if (name === 'email') return;
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
+    dispatch({ type: 'SET_BOOKING_FIELD', field: name, value });
   }, []);
 
-  // Retry server connection
   const handleRetryConnection = async () => {
-    setLoading(true);
-    // This now checks Supabase connection health
+    dispatch({ type: 'SET_LOADING', payload: true });
     const isHealthy = await checkApiHealth();
-    setApiError(!isHealthy);
-    setLoading(false);
-    
-    if (isHealthy && bookingForm.date && bookingForm.lab) {
-      handleFetchAvailableSeats(bookingForm.date, bookingForm.lab);
-    }
+    dispatch({ type: 'SET_FIELD', field: 'apiError', value: !isHealthy });
+    dispatch({ type: 'SET_LOADING', payload: false });
   };
 
-  // Fetch available seats for selected date and lab
-  const handleFetchAvailableSeats = async (selectedDate, selectedLab) => {
-    if (!selectedDate || !selectedLab) {
-      setSelectedSlots([]);
-      return;
-    }
-
-    setLoading(true);
-    // Store current error message and selected slots
-    const currentError = error;
-    setApiError(false);
-    
-    try {
-      const response = await fetchAvailableSeats(selectedDate, selectedLab);
-      console.log('Available slots response:', response);
-      
-      if (response && response.availableSlots) {
-        // Transform the data for the UI
-        const availableTimeSlots = response.availableSlots.map(slot => ({
-          value: slot.time_slot,
-          label: formatTimeSlotForDisplay(slot.time_slot),
-          available: slot.available
-        }));
-        
-        // Update time slots
-        setSelectedSlots(availableTimeSlots.map(slot => slot.value));
-      } else {
-        setSelectedSlots([]);
-        setError('No time slot data available. Please try again.');
-      }
-
-      // Restore error message if it exists
-      if (currentError) {
-        setError(currentError);
-      }
-    } catch (error) {
-      console.error('Error fetching available seats:', error);
-      if (error.message && error.message.includes('Supabase request')) {
-        setApiError(true);
-      } else {
-        setError(error.message || 'Failed to fetch available time slots. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Helper to format time slot for display
-  const formatTimeSlotForDisplay = (timeSlot) => {
-    const [start, end] = timeSlot.split('-');
-    // Convert 24-hour format to AM/PM
-    const formatTime = (time) => {
-      let [hours, minutes] = time.split(':');
-      const hoursNum = parseInt(hours);
-      const period = hoursNum >= 12 ? 'PM' : 'AM';
-      const displayHours = hoursNum > 12 ? hoursNum - 12 : hoursNum;
-      return `${displayHours}:${minutes} ${period}`;
-    };
-    
-    return `${formatTime(start)} - ${formatTime(end)}`;
-  };
-
-  // Handle booking form submission
-  const handleBookingSubmit = async (e) => {
+  const handleBookingSubmit = useCallback(async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    // Failsafe: Block if any booking is waiting or still_out
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     if ((bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out')) {
-      setError('You already have a pending or active outing request. Please complete or delete it before making a new one.');
-      setLoading(false);
+      dispatch({ type: 'SET_ERROR', payload: 'You already have a pending or active outing request.' });
+      dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
-
     try {
-      // Validate required fields
       if (!bookingForm.name || !bookingForm.email || !bookingForm.department || !bookingForm.outDate || !bookingForm.outTime || !bookingForm.inDate || !bookingForm.inTime || !bookingForm.parentEmail) {
-        setError('Please fill all required fields.');
-        setLoading(false);
-        return;
+        throw new Error('Please fill all required fields.');
       }
-
-      // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(bookingForm.parentEmail)) {
-        setError('Please enter a valid parent email address.');
-        setLoading(false);
-        return;
+        throw new Error('Please enter a valid parent email address.');
       }
-
-      // Map department to hostelName for API
       const bookingData = {
         name: bookingForm.name,
         email: bookingForm.email,
-        hostelName: bookingForm.department, // map department to hostelName
+        hostelName: bookingForm.department,
         outDate: bookingForm.outDate,
         outTime: bookingForm.outTime,
         inDate: bookingForm.inDate,
         inTime: bookingForm.inTime,
         parentEmail: bookingForm.parentEmail,
-        parentPhone: bookingForm.parentPhone, // Ensure parentPhone is included
-        status: 'waiting' // Ensure status is set
+        parentPhone: bookingForm.parentPhone,
+        status: 'waiting'
       };
-
-      // Log the data being sent
-      console.log('Booking data sent:', bookingData);
-
-      // Make the booking request
       const response = await bookSlot(bookingData);
-
       if (response.success) {
-        setSuccess('Request submitted successfully!');
-        // Clear form
-        setBookingForm({
-          name: '',
-          email: bookingForm.email, // keep email if needed
-          department: '',
-          outDate: '',
-          outTime: '',
-          inDate: '',
-          inTime: '',
-          parentEmail: '',
-          parentPhone: ''
-        });
-        // Fetch latest bookings
+        dispatch({ type: 'SET_SUCCESS', payload: 'Request submitted successfully!' });
+        dispatch({ type: 'RESET_BOOKING_FORM' });
         await fetchUserBookings(bookingForm.email);
       } else {
-        setError(response.error || 'Failed to create booking. Please try again.');
+        throw new Error(response.error || 'Failed to create booking.');
       }
     } catch (error) {
-      console.error('Booking error:', error);
-      setError(error.message || 'Failed to create booking. Please try again.');
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to create booking.' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
-
-  // Fetch booked slots for a user
-  const fetchUserBookings = async (email) => {
-    try {
-      setLoading(true);
-      const bookingsData = await fetchBookedSlots(email);
-      
-      // Update bookings
-      setBookedSlots(bookingsData || []);
-      
-      // Update counts if available
-      if (bookingsData && bookingsData.counts) {
-        setBookingCounts(bookingsData.counts);
-      }
-      
-      // Clear any existing error
-      setError('');
-    } catch (error) {
-      console.error('Error fetching user bookings:', error);
-      // Don't set error if it's just that there are no bookings yet
-      if (error.message !== 'No bookings found') {
-        setError('');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSlotSelect = useCallback((slot) => {
-    setSelectedSlots(prevSlots => {
-      const newSlots = prevSlots.includes(slot)
-        ? prevSlots.filter(s => s !== slot)  // Remove slot if already selected
-        : [...prevSlots, slot];              // Add slot if not selected
-      
-      // Update bookingForm.timeSlots as well
-      setBookingForm(prev => ({
-        ...prev,
-        timeSlots: newSlots
-      }));
-      
-      return newSlots;
-    });
-    setError('');
-    setSuccess('');
-  }, []);
-
-  // Function to check if a date is a weekend
-  const isWeekend = (date) => {
-    const day = new Date(date).getDay();
-    // 0 is Sunday, 6 is Saturday
-    return day === 0 || day === 6;
-  };
-
-  // Function to check if a date should be disabled (weekends)
-  const isDateDisabled = (date) => {
-    const currentDate = new Date(date);
-    return currentDate.getDay() === 0 || currentDate.getDay() === 6; // 0 is Sunday, 6 is Saturday
-  };
-      
-  // Function to get the next available date (skip weekends)
-  const getNextAvailableDate = (date) => {
-    const currentDate = new Date(date);
-    while (isDateDisabled(currentDate)) {
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return currentDate.toISOString().split('T')[0];
-  };
-
-  const handleStatusFilter = useCallback((status) => {
-    setSelectedStatus(status);
-    // We don't need to refetch - just filter the existing bookings
-    if (bookedSlots && bookedSlots.length > 0) {
-      // The filtering is now handled in the UI by the component
-      // We just need to update the selected status
-    }
-  }, [bookedSlots]);
+  }, [bookingForm, fetchUserBookings, bookedSlots]);
 
   const handleDeleteBooking = useCallback(async (bookingId) => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(bookingId);
-      setSuccess('Booking deleted successfully. You can now make a new request.');
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      setError(err.message || 'Failed to delete booking');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [bookingForm.email]);
+  }, [bookingForm.email, fetchUserBookings]);
 
   const handleDeleteWaiting = useCallback(async () => {
     if (!waitingBooking) return;
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(waitingBooking.id);
-      setSuccess('Booking deleted successfully. You can now make a new request.');
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      setError(err.message || 'Failed to delete booking');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [waitingBooking, bookingForm.email]);
+  }, [waitingBooking, bookingForm.email, fetchUserBookings]);
 
-  // Find latest still_out/confirmed booking with OTP
   const latestOtpBooking = useMemo(() =>
     (bookedSlots || [])
       .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
       .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
   , [bookedSlots]);
 
-  // Find the current (waiting or still_out) booking
   const currentBooking = useMemo(() =>
     (bookedSlots || [])
       .filter(b => b.status === 'waiting' || b.status === 'still_out')
       .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
   , [bookedSlots]);
 
-  // Find all old confirmed bookings
   const oldConfirmedBookings = useMemo(() =>
     (bookedSlots || [])
       .filter(b => b.status === 'confirmed')
   , [bookedSlots]);
 
-  // Add handler factories at the top of the component
   const handleDeleteBookingFactory = useCallback((id) => () => handleDeleteBooking(id), [handleDeleteBooking]);
-  const handleSlotSelectFactory = useCallback((slot) => () => handleSlotSelect(slot), [handleSlotSelect]);
 
   return (
     <div className="slot-booking-container">
@@ -599,31 +394,6 @@ const SlotBooking = () => {
           className="readonly-input"
         />
 
-        <div className="time-slots-grid">
-          {loading && selectedSlots.length === 0 ? (
-            <div>Loading available slots...</div>
-          ) : selectedSlots.length > 0 ? (
-            selectedSlots.map(slot => (
-              <div
-                key={slot}
-                className={`time-slot-item ${!slot.available ? 'disabled' : ''} ${selectedSlots.includes(slot) ? 'selected' : ''}`}
-                onClick={slot.available ? handleSlotSelectFactory(slot) : undefined}
-                style={{ cursor: slot.available ? 'pointer' : 'not-allowed' }}
-              >
-                <div className="time-slot-time">{formatTimeSlotForDisplay(slot)}</div>
-                <div className="time-slot-status" style={{ 
-                  color: slot.available ? '#4caf50' : '#f44336',
-                  fontWeight: '500'
-                }}>
-                  {slot.available ? 'Available' : 'Not Available'}
-                </div>
-              </div>
-            ))
-          ) : (
-            null
-          )}
-        </div>
-
         <div className="button-container">
           <button 
             type="submit"
@@ -684,12 +454,6 @@ const SlotBooking = () => {
         </div>
       )}
       
-      {message && (
-        <div className={`message ${message.includes('Error') || message.includes('Please') ? 'error' : 'success'}`}>
-          {message}
-        </div>
-      )}
-
       {/* Render current request (left) and OTP (right) side by side at the top, then past confirmed outings below */}
       <div style={{ margin: '32px 0' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, marginBottom: 32, alignItems: 'flex-start' }}>

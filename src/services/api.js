@@ -14,53 +14,6 @@ const handleError = (error) => {
 };
 
 /**
- * Fetch available seats for a given date and lab
- * @param {string} date - The date to fetch available seats for
- * @param {string} lab - The lab to fetch available seats for
- * @returns {Promise<Object>} - Available seats data
- */
-export const fetchAvailableSeats = async (date, lab) => {
-  try {
-    // Query available_seats view or function in Supabase
-    const { data: existingBookings, error } = await supabase
-      .from('outing_requests')
-      .select('*')
-      .eq('date', date)
-      .eq('lab', lab)
-      .in('status', ['confirmed', 'waiting']); // Check both confirmed and waiting bookings
-    
-    if (error) throw error;
-    
-    // Transform data to match the expected format
-    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
-    
-    // Get all time slots
-    const allTimeSlots = [
-      "08:00-08:50", "08:50-09:40", "09:45-10:35", 
-      "10:40-11:30", "11:35-12:25", "12:30-01:20", 
-      "01:25-02:15", "02:20-03:10", "03:10-04:00", 
-      "04:00-04:50"
-    ];
-    
-    // Calculate available slots
-    const availableSlots = allTimeSlots.map(slot => {
-      const isBooked = bookedSlots.includes(slot);
-      return {
-        time_slot: slot,
-        available: !isBooked,
-        status: isBooked ? 'booked' : 'available'
-      };
-    });
-    
-    return { 
-      availableSlots
-    };
-  } catch (error) {
-    throw handleError(error);
-  }
-};
-
-/**
  * Book a lab slot
  * @param {Object} bookingData - The booking data
  * @returns {Promise<Object>} - Booking confirmation
