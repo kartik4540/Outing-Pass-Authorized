@@ -462,6 +462,10 @@ const SlotBooking = () => {
       .filter(b => b.status === 'confirmed')
   , [bookedSlots]);
 
+  // Add handler factories at the top of the component
+  const handleDeleteBookingFactory = useCallback((id) => () => handleDeleteBooking(id), [handleDeleteBooking]);
+  const handleSlotSelectFactory = useCallback((slot) => () => handleSlotSelect(slot), [handleSlotSelect]);
+
   return (
     <div className="slot-booking-container">
       <h2>Request Outing</h2>
@@ -603,7 +607,7 @@ const SlotBooking = () => {
               <div
                 key={slot}
                 className={`time-slot-item ${!slot.available ? 'disabled' : ''} ${selectedSlots.includes(slot) ? 'selected' : ''}`}
-                onClick={() => slot.available && handleSlotSelect(slot)}
+                onClick={slot.available ? handleSlotSelectFactory(slot) : undefined}
                 style={{ cursor: slot.available ? 'pointer' : 'not-allowed' }}
               >
                 <div className="time-slot-time">{formatTimeSlotForDisplay(slot)}</div>
@@ -701,7 +705,7 @@ const SlotBooking = () => {
                 <div><b>In Time:</b> {currentBooking.in_time}</div>
                 <div><b>Status:</b> {currentBooking.status}</div>
                 {currentBooking.status === 'waiting' && (
-                  <button onClick={() => handleDeleteBooking(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
+                  <button onClick={handleDeleteBookingFactory(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
                     {loading ? 'Deleting...' : 'Delete'}
             </button>
                 )}

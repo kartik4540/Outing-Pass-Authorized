@@ -284,6 +284,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setBanStatuses(statuses);
   }, []);
 
+  // Add handler factories at the top of the component
+  const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
+  const handleProcessBookingReject = useCallback((id) => () => processBookingAction(id, 'reject'), [processBookingAction]);
+  const handleSaveInTimeFactory = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
+  const handleSendStillOutAlertFactory = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
+
   if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
@@ -365,7 +371,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                         style={{ width: '120px' }}
                       />
                       <button
-                        onClick={() => handleSaveInTime(booking.id)}
+                        onClick={handleSaveInTimeFactory(booking.id)}
                         disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
                         style={{ padding: '4px 10px', fontSize: '0.95em' }}
                       >
@@ -385,14 +391,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               {selectedStatus === 'waiting' && (
                 <div className="action-buttons">
                   <button
-                    onClick={() => processBookingAction(booking.id, 'confirm')}
+                    onClick={handleProcessBookingConfirm(booking.id)}
                     className="confirm-button"
                     disabled={loading}
                   >
                     Confirm
                   </button>
                   <button
-                    onClick={() => processBookingAction(booking.id, 'reject')}
+                    onClick={handleProcessBookingReject(booking.id)}
                     className="reject-button"
                     disabled={loading}
                   >
@@ -403,7 +409,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               {selectedStatus === 'still_out' && (
                 <div className="still-out-actions">
                   <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
-                  <button onClick={() => sendStillOutAlert(booking)} className="alert-btn">Alert</button>
+                  <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
                 </div>
               )}
             </div>

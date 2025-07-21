@@ -209,6 +209,12 @@ const AdminStudentInfo = () => {
     }
   }, [banStatuses, fetchBans]);
 
+  // Add handler factories at the top of the component
+  const handleEditFactory = useCallback((info) => () => handleEdit(info), [handleEdit]);
+  const handleDeleteFactory = useCallback((info) => () => handleDelete(info), [handleDelete]);
+  const handleBanModalFactory = useCallback((info) => () => setBanModal({ open: true, info, from: '', till: '', reason: '' }), [setBanModal]);
+  const handleUnbanFactory = useCallback((email) => () => handleUnban(email), [handleUnban]);
+
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
@@ -328,13 +334,13 @@ const AdminStudentInfo = () => {
                 {/* Only show Actions column for superadmin and not warden */}
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
                 <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={() => handleEdit(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
-                    <button onClick={() => handleDelete(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
-                    <button onClick={() => setBanModal({ open: true, info, from: '', till: '', reason: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
+                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
+                    <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
                     {banStatuses[info.student_email] && (
                       <>
                         <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
-                        <button onClick={() => handleUnban(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
+                        <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
                           {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
                         </button>
                       </>
