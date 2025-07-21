@@ -188,14 +188,20 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return filtered;
   }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
-  // Tab counts: status counts from hostelFilteredBookings (not date filtered)
+  // Ensure tabCounts is only dependent on hostelFilteredBookings
   const tabCounts = useMemo(() => {
     const counts = {
-      waiting: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
-      still_out: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
-      confirmed: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
-      rejected: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
+      waiting: 0,
+      still_out: 0,
+      confirmed: 0,
+      rejected: 0,
     };
+    hostelFilteredBookings.forEach(b => {
+      const status = (b.status || '').toLowerCase();
+      if (counts.hasOwnProperty(status)) {
+        counts[status]++;
+      }
+    });
     console.log('tabCounts:', counts);
     return counts;
   }, [hostelFilteredBookings]);
