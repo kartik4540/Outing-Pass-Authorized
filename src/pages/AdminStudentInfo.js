@@ -96,7 +96,7 @@ const AdminStudentInfo = () => {
     setError('');
     setSuccess('');
     try {
-      await addOrUpdateStudentInfo(form, adminEmail);
+      const upsertResult = await addOrUpdateStudentInfo(form, adminEmail);
       setSuccess('Student info saved!');
       setEditing(null);
       setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
@@ -230,21 +230,18 @@ const AdminStudentInfo = () => {
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
   // Filtered list based on search and warden hostel
-  const filteredInfo = useMemo(() => {
+  const filteredInfo = useMemo(() => studentInfo.filter(info => {
     const q = search.toLowerCase();
     const matchesSearch =
-      studentInfo.filter(info => {
-        const matches =
-          info.student_email.toLowerCase().includes(q) ||
-          info.hostel_name.toLowerCase().includes(q) ||
-          (info.parent_email && info.parent_email.toLowerCase().includes(q));
-        if (wardenLoggedIn && wardenHostels.length > 0) {
-          // Only show students from the warden's hostel(s)
-          return matches && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
-        }
-        return matches;
-      })
-  }, [studentInfo, search, wardenLoggedIn, wardenHostels]);
+      info.student_email.toLowerCase().includes(q) ||
+      info.hostel_name.toLowerCase().includes(q) ||
+      (info.parent_email && info.parent_email.toLowerCase().includes(q));
+    if (wardenLoggedIn && wardenHostels.length > 0) {
+      // Only show students from the warden's hostel(s)
+      return matchesSearch && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
+    }
+    return matchesSearch;
+  }), [studentInfo, search, wardenLoggedIn, wardenHostels]);
 
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>

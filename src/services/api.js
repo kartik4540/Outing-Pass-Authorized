@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { getStatusUpdateEmail, getNowOutEmail, getReturnedEmail } from './mailTemplates';
+import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturnedEmail } from './mailTemplates';
 
 // No longer need API_BASE_URL as we're using Supabase directly
 

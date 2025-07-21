@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
+import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
-  const [allBookings, setAllBookings] = useState([]); // Raw data from backend
-  const [bookings, setBookings] = useState([]); // Filtered by status
+  const [bookings, setBookings] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('waiting');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,6 +16,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [savingInTimeId, setSavingInTimeId] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [user, setUser] = useState(null);
   const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
@@ -27,36 +27,18 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
-  // Fetch all bookings ONCE on mount or after real change
   useEffect(() => {
-    const fetchInitialBookings = async () => {
-      if (wardenLoggedIn) {
-        await fetchAndSetAllBookings(wardenEmail);
-      } else {
-        await checkAdminAndFetchBookings();
-      }
-    };
-    fetchInitialBookings();
-  }, []);
-
-  // Helper to fetch and set all bookings
-  const fetchAndSetAllBookings = useCallback(async (adminEmail) => {
-    try {
-      setLoading(true);
-      const bookingsData = await fetchPendingBookings(adminEmail) || [];
-      setAllBookings(bookingsData);
-      setError(null);
-    } catch (error) {
-      setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
-      console.error('FetchAllBookings error:', error);
-    } finally {
-      setLoading(false);
+    if (wardenLoggedIn) {
+      fetchAllBookings(wardenEmail);
+    } else {
+      checkAdminAndFetchBookings();
     }
   }, []);
 
   const checkAdminAndFetchBookings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
       if (!user) {
         navigate('/login');
         return;
@@ -65,34 +47,60 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         navigate('/');
         return;
       }
-      await fetchAndSetAllBookings(user.email);
+      await fetchAllBookings(user.email);
     } catch (error) {
       console.error('Error in checkAdminAndFetchBookings:', error);
       setError('Failed to authenticate');
     }
   };
 
-  // Only filter locally on tab/status change
-  useEffect(() => {
-    const statusToUse = selectedStatus;
-    const filtered = statusToUse === 'all'
-      ? allBookings
-      : allBookings.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
-    setBookings(filtered);
-    // Update counts
-    const waiting = allBookings.filter(booking => booking.status === 'waiting').length;
-    const still_out = allBookings.filter(booking => booking.status === 'still_out').length;
-    const confirmed = allBookings.filter(booking => booking.status === 'confirmed').length;
-    const rejected = allBookings.filter(booking => booking.status === 'rejected').length;
-    setCounts({ waiting, still_out, confirmed, rejected });
-  }, [allBookings, selectedStatus]);
+  const fetchAllBookings = async (adminEmail, status) => {
+    try {
+      setLoading(true);
+      const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      if (!Array.isArray(bookingsData)) {
+        setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
+        setLoading(false);
+        return;
+      }
+      const statusToUse = status || selectedStatus;
+      const filteredBookings = statusToUse === 'all'
+        ? bookingsData 
+        : bookingsData.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
+      setBookings(filteredBookings);
+      const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
+      const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
+      const confirmed = bookingsData.filter(booking => booking.status === 'confirmed').length;
+      const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
+      setCounts({ waiting, still_out, confirmed, rejected });
+      setError(null);
+    } catch (error) {
+      setError('Failed to fetch bookings: ' + (error.message || JSON.stringify(error)));
+      console.error('FetchAllBookings error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Only update selectedStatus on tab click, don't fetch
-  const handleStatusChange = useCallback((status) => {
+  const handleStatusChange = useCallback(async (status) => {
     setSelectedStatus(status);
-  }, []);
+    try {
+      setLoading(true);
+      if (wardenLoggedIn) {
+        await fetchAllBookings(wardenEmail, status);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        await fetchAllBookings(user.email, status);
+      }
+      setError(null);
+    } catch (error) {
+      setError('Failed to filter bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
-  // After a real change, re-fetch all bookings
   const processBookingAction = useCallback(async (bookingId, action) => {
     try {
       setLoading(true);
@@ -108,10 +116,15 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       if (selectedStatus === 'still_out' && action === 'confirm') {
         newStatus = 'confirmed';
       }
-      const result = await updateBookingInTime(bookingId, newStatus);
-      // After any action, re-fetch all bookings
-      await fetchAndSetAllBookings(emailToUse);
-      setSelectedStatus(newStatus === 'still_out' || newStatus === 'confirmed' ? newStatus : selectedStatus);
+      const result = await handleBookingAction(bookingId, newStatus, emailToUse);
+      // Only switch tab if confirming, not for rejection
+      if (newStatus === 'still_out' || newStatus === 'confirmed') {
+      setSelectedStatus(newStatus);
+      await fetchAllBookings(emailToUse, newStatus);
+      } else {
+        // For rejection, stay on current tab and just refresh
+        await fetchAllBookings(emailToUse, selectedStatus);
+      }
       setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
         if (result.emailResult.sent) {
@@ -125,7 +138,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAndSetAllBookings]);
+  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings, handleBookingAction]);
 
   const handleInTimeChange = useCallback((bookingId, value) => {
     setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
@@ -137,10 +150,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const newInTime = editInTime[bookingId];
       await updateBookingInTime(bookingId, newInTime);
       if (wardenLoggedIn) {
-        await fetchAndSetAllBookings(wardenEmail);
+        await fetchAllBookings(wardenEmail, selectedStatus);
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        await fetchAndSetAllBookings(user.email);
+        await fetchAllBookings(user.email, selectedStatus);
       }
       setSuccess('In Time updated successfully.');
     } catch (error) {
@@ -148,10 +161,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setSavingInTimeId(null);
     }
-  }, [editInTime, wardenLoggedIn, wardenEmail, fetchAndSetAllBookings]);
-
-  // Manual refresh button handler
-  // Remove the handleManualRefresh function and the Refresh button from the render
+  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
 
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
@@ -173,7 +183,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return filtered;
   }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
-  // Ensure counts is only dependent on hostelFilteredBookings
+  // Ensure tabCounts is only dependent on hostelFilteredBookings
   const tabCounts = useMemo(() => {
     const counts = {
       waiting: 0,
@@ -253,31 +263,33 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     <div className="pending-bookings-page">
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <h2>Outing Requests</h2>
+      {success && <div className="success-message">{success}</div>}
+      {error && <div className="error-message">{error}</div>}
       
       <div className="status-tabs">
         <button
           className={selectedStatus === 'waiting' ? 'active' : ''}
           onClick={() => handleStatusChange('waiting')}
         >
-          Waiting ({counts.waiting})
+          Waiting ({tabCounts.waiting})
         </button>
         <button
           className={selectedStatus === 'still_out' ? 'active' : ''}
           onClick={() => handleStatusChange('still_out')}
         >
-          Still Out ({counts.still_out || 0})
+          Still Out ({tabCounts.still_out || 0})
         </button>
         <button
           className={selectedStatus === 'confirmed' ? 'active' : ''}
           onClick={() => handleStatusChange('confirmed')}
         >
-          Confirmed ({counts.confirmed})
+          Confirmed ({tabCounts.confirmed})
         </button>
         <button
           className={selectedStatus === 'rejected' ? 'active' : ''}
           onClick={() => handleStatusChange('rejected')}
         >
-          Rejected ({counts.rejected})
+          Rejected ({tabCounts.rejected})
         </button>
       </div>
       
@@ -292,9 +304,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       </div>
       
-      {bookings.length > 0 ? (
+      {filteredBookings.length > 0 ? (
         <div className="bookings-list">
-          {bookings.map(booking => (
+          {filteredBookings.map(booking => (
             <div key={booking.id} className="booking-card">
               <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
               <div className="booking-info">
@@ -314,9 +326,59 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
                   <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {/* Booking actions and details end here */}
+                  {selectedStatus === 'waiting' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
+                      <input
+                        id={`inTime-${booking.id}`}
+                        type="time"
+                        value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
+                        onChange={e => handleInTimeChange(booking.id, e.target.value)}
+                        disabled={savingInTimeId === booking.id}
+                        style={{ width: '120px' }}
+                      />
+                      <button
+                        onClick={() => handleSaveInTime(booking.id)}
+                        disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
+                        style={{ padding: '4px 10px', fontSize: '0.95em' }}
+                      >
+                        {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                  <p><strong>In Time:</strong> {booking.in_time}</p>
+                  )}
+                  {booking.handled_by && booking.status !== 'waiting' && (
+                    <p className="handled-time">
+                      <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
+                    </p>
+                  )}
                 </div>
               </div>
+              {selectedStatus === 'waiting' && (
+                <div className="action-buttons">
+                  <button
+                    onClick={() => processBookingAction(booking.id, 'confirm')}
+                    className="confirm-button"
+                    disabled={loading}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => processBookingAction(booking.id, 'reject')}
+                    className="reject-button"
+                    disabled={loading}
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {selectedStatus === 'still_out' && (
+                <div className="still-out-actions">
+                  <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
+                  <button onClick={() => sendStillOutAlert(booking)} className="alert-btn">Alert</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -327,4 +389,4 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   );
 };
 
-export default PendingBookings;
+export default PendingBookings; 

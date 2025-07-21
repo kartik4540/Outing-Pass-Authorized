@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   fetchAvailableSeats, 
   bookSlot, 
   fetchBookedSlots, 
   deleteBookedSlot, 
   checkApiHealth,
+  fetchPendingBookings,
+  handleBookingAction,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail,
   checkAndAutoUnban
@@ -34,6 +37,9 @@ const SlotBooking = () => {
   const [apiError, setApiError] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState([]); // Changed from selectedSlot to selectedSlots array
   const [message, setMessage] = useState('');
+  const [user, setUser] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [bookingCounts, setBookingCounts] = useState({ waiting: 0, confirmed: 0, rejected: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
   const [studentInfoExists, setStudentInfoExists] = useState(true); // Assume true by default
   const [banInfo, setBanInfo] = useState(null); // store ban info if banned
@@ -191,7 +197,7 @@ const SlotBooking = () => {
   };
 
   // Fetch available seats for selected date and lab
-  const handleFetchAvailableSeats = useCallback(async (selectedDate, selectedLab) => {
+  const handleFetchAvailableSeats = async (selectedDate, selectedLab) => {
     if (!selectedDate || !selectedLab) {
       setSelectedSlots([]);
       return;
@@ -234,7 +240,7 @@ const SlotBooking = () => {
     } finally {
       setLoading(false);
     }
-  }, [error]);
+  };
   
   // Helper to format time slot for display
   const formatTimeSlotForDisplay = (timeSlot) => {
@@ -334,6 +340,11 @@ const SlotBooking = () => {
       // Update bookings
       setBookedSlots(bookingsData || []);
       
+      // Update counts if available
+      if (bookingsData && bookingsData.counts) {
+        setBookingCounts(bookingsData.counts);
+      }
+      
       // Clear any existing error
       setError('');
     } catch (error) {
@@ -379,13 +390,22 @@ const SlotBooking = () => {
   };
       
   // Function to get the next available date (skip weekends)
-  const getNextAvailableDate = useCallback((date) => {
+  const getNextAvailableDate = (date) => {
     const currentDate = new Date(date);
     while (isDateDisabled(currentDate)) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return currentDate.toISOString().split('T')[0];
-  }, []);
+  };
+
+  const handleStatusFilter = useCallback((status) => {
+    setSelectedStatus(status);
+    // We don't need to refetch - just filter the existing bookings
+    if (bookedSlots && bookedSlots.length > 0) {
+      // The filtering is now handled in the UI by the component
+      // We just need to update the selected status
+    }
+  }, [bookedSlots]);
 
   const handleDeleteBooking = useCallback(async (bookingId) => {
     setLoading(true);
