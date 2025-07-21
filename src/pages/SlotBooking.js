@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useReducer, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   fetchAvailableSeats, 
@@ -15,9 +15,9 @@ import {
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
 
-const SlotBooking = () => {
-  // Form state
-  const [bookingForm, setBookingForm] = useState({
+// Define initial state and reducer
+const initialState = {
+  bookingForm: {
     name: '',
     email: '',
     department: '',
@@ -27,16 +27,37 @@ const SlotBooking = () => {
     inTime: '',
     parentEmail: '',
     parentPhone: ''
-  });
+  },
+  loading: false,
+  error: '',
+  success: '',
+  apiError: false,
+  message: '',
+};
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_FORM':
+      return { ...state, bookingForm: { ...state.bookingForm, ...action.payload } };
+    case 'RESET_FORM':
+      return { ...state, bookingForm: { ...initialState.bookingForm, ...action.payload } };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    case 'SET_SUCCESS':
+      return { ...state, success: action.payload };
+    case 'SET_API_ERROR':
+      return { ...state, apiError: action.payload };
+    case 'SET_MESSAGE':
+      return { ...state, message: action.payload };
+    default:
+      return state;
+  }
+}
 
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [apiError, setApiError] = useState(false);
+const SlotBooking = () => {
+  // Form state
   const [selectedSlots, setSelectedSlots] = useState([]); // Changed from selectedSlot to selectedSlots array
-  const [message, setMessage] = useState('');
   const [user, setUser] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [bookingCounts, setBookingCounts] = useState({ waiting: 0, confirmed: 0, rejected: 0 });
@@ -46,11 +67,32 @@ const SlotBooking = () => {
   const [blockBooking, setBlockBooking] = useState(false);
   const [waitingBooking, setWaitingBooking] = useState(null);
 
+  // Replace useState for bookingForm, loading, error, success, apiError, message with useReducer
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const { bookingForm, loading, error, success, apiError, message } = state;
+
+  // UI state
+  // const [loading, setLoading] = useState(false);
+  // const [bookedSlots, setBookedSlots] = useState([]);
+  // const [error, setError] = useState('');
+  // const [success, setSuccess] = useState('');
+  // const [apiError, setApiError] = useState(false);
+  // const [selectedSlots, setSelectedSlots] = useState([]); // Changed from selectedSlot to selectedSlots array
+  // const [message, setMessage] = useState('');
+  // const [user, setUser] = useState(null);
+  // const [selectedStatus, setSelectedStatus] = useState('all');
+  // const [bookingCounts, setBookingCounts] = useState({ waiting: 0, confirmed: 0, rejected: 0 });
+  // const [isAdmin, setIsAdmin] = useState(false);
+  // const [studentInfoExists, setStudentInfoExists] = useState(true); // Assume true by default
+  // const [banInfo, setBanInfo] = useState(null); // store ban info if banned
+  // const [blockBooking, setBlockBooking] = useState(false);
+  // const [waitingBooking, setWaitingBooking] = useState(null);
+
   // Check API health and initialize user on component mount
   useEffect(() => {
     const checkServerHealth = async () => {
       const isHealthy = await checkApiHealth();
-      setApiError(!isHealthy);
+      dispatch({ type: 'SET_API_ERROR', payload: !isHealthy });
     };
     
     const initializeUser = async () => {
@@ -86,14 +128,16 @@ const SlotBooking = () => {
           } catch (e) {
             setStudentInfoExists(false);
           }
-          setBookingForm(prev => ({
-            ...prev,
-            email,
-            name,
-            department,
-            parentEmail,
-            parentPhone
-          }));
+          dispatch({
+            type: 'SET_FORM',
+            payload: {
+              email,
+              name,
+              department,
+              parentEmail,
+              parentPhone
+            }
+          });
           // Ban check and auto-unban
           const ban = await checkAndAutoUnban(email);
           setBanInfo(ban);
@@ -133,63 +177,65 @@ const SlotBooking = () => {
     }
     
     // Clear previous messages
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
 
     // Handle date changes with weekend validation
     if (name === 'date' && value) {
       if (isDateDisabled(value)) {
         const nextAvailableDate = getNextAvailableDate(value);
-        setError('Weekends are not available for booking. Next available date selected.');
+        dispatch({ type: 'SET_ERROR', payload: 'Weekends are not available for booking. Next available date selected.' });
         
         // Update the date input to the next available date
         e.target.value = nextAvailableDate;
         
-        setBookingForm(prev => ({
-          ...prev,
-          date: nextAvailableDate,
-          lab: '',
-          timeSlots: []
-        }));
+        dispatch({
+          type: 'SET_FORM',
+          payload: {
+            date: nextAvailableDate,
+            lab: '',
+            timeSlots: []
+          }
+        });
         setSelectedSlots([]);
         return;
       }
 
-      setBookingForm(prev => ({
-        ...prev,
-        date: value,
-        lab: '',  // Reset lab selection when date changes
-        timeSlots: []  // Reset time slots when date changes
-      }));
+      dispatch({
+        type: 'SET_FORM',
+        payload: {
+          date: value,
+          lab: '',  // Reset lab selection when date changes
+          timeSlots: []  // Reset time slots when date changes
+        }
+      });
       setSelectedSlots([]); // Clear selected slots when date changes
     } else {
       // Update form state for other fields
-      setBookingForm(prev => {
-        const updatedForm = {
-          ...prev,
+      dispatch({
+        type: 'SET_FORM',
+        payload: {
           [name]: value
-        };
-
-        // Handle lab selection or day order changes
-        if ((name === 'lab') && updatedForm.date) {
-          // Only fetch available seats if we have both lab and day order
-          if (updatedForm.lab) {
-            handleFetchAvailableSeats(updatedForm.date, updatedForm.lab);
-          }
         }
-
-        return updatedForm;
       });
+
+      // Handle lab selection or day order changes
+      if ((name === 'lab') && bookingForm.date) {
+        // Only fetch available seats if we have both lab and day order
+        if (bookingForm.lab) {
+          handleFetchAvailableSeats(bookingForm.date, bookingForm.lab);
+        }
+      }
     }
-  }, []);
+  }, [bookingForm]);
 
   // Retry server connection
   const handleRetryConnection = async () => {
-    setLoading(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
     // This now checks Supabase connection health
     const isHealthy = await checkApiHealth();
-    setApiError(!isHealthy);
-    setLoading(false);
+    dispatch({ type: 'SET_API_ERROR', payload: !isHealthy });
+    dispatch({ type: 'SET_LOADING', payload: false });
     
     if (isHealthy && bookingForm.date && bookingForm.lab) {
       handleFetchAvailableSeats(bookingForm.date, bookingForm.lab);
@@ -203,10 +249,10 @@ const SlotBooking = () => {
       return;
     }
 
-    setLoading(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
     // Store current error message and selected slots
     const currentError = error;
-    setApiError(false);
+    dispatch({ type: 'SET_API_ERROR', payload: false });
     
     try {
       const response = await fetchAvailableSeats(selectedDate, selectedLab);
@@ -224,22 +270,22 @@ const SlotBooking = () => {
         setSelectedSlots(availableTimeSlots.map(slot => slot.value));
       } else {
         setSelectedSlots([]);
-        setError('No time slot data available. Please try again.');
+        dispatch({ type: 'SET_ERROR', payload: 'No time slot data available. Please try again.' });
       }
 
       // Restore error message if it exists
       if (currentError) {
-        setError(currentError);
+        dispatch({ type: 'SET_ERROR', payload: currentError });
       }
     } catch (error) {
       console.error('Error fetching available seats:', error);
       if (error.message && error.message.includes('Supabase request')) {
-        setApiError(true);
+        dispatch({ type: 'SET_API_ERROR', payload: true });
       } else {
-        setError(error.message || 'Failed to fetch available time slots. Please try again.');
+        dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to fetch available time slots. Please try again.' });
       }
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
   
@@ -261,30 +307,30 @@ const SlotBooking = () => {
   // Handle booking form submission
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
 
     // Failsafe: Block if any booking is waiting or still_out
     if ((bookedSlots || []).some(b => b.status === 'waiting' || b.status === 'still_out')) {
-      setError('You already have a pending or active outing request. Please complete or delete it before making a new one.');
-      setLoading(false);
+      dispatch({ type: 'SET_ERROR', payload: 'You already have a pending or active outing request. Please complete or delete it before making a new one.' });
+      dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
 
     try {
       // Validate required fields
       if (!bookingForm.name || !bookingForm.email || !bookingForm.department || !bookingForm.outDate || !bookingForm.outTime || !bookingForm.inDate || !bookingForm.inTime || !bookingForm.parentEmail) {
-        setError('Please fill all required fields.');
-        setLoading(false);
+        dispatch({ type: 'SET_ERROR', payload: 'Please fill all required fields.' });
+        dispatch({ type: 'SET_LOADING', payload: false });
         return;
       }
 
       // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(bookingForm.parentEmail)) {
-        setError('Please enter a valid parent email address.');
-        setLoading(false);
+        dispatch({ type: 'SET_ERROR', payload: 'Please enter a valid parent email address.' });
+        dispatch({ type: 'SET_LOADING', payload: false });
         return;
       }
 
@@ -309,36 +355,39 @@ const SlotBooking = () => {
       const response = await bookSlot(bookingData);
 
       if (response.success) {
-        setSuccess('Request submitted successfully!');
+        dispatch({ type: 'SET_SUCCESS', payload: 'Request submitted successfully!' });
         // Clear form
-        setBookingForm({
-          name: '',
-          email: bookingForm.email, // keep email if needed
-          department: '',
-          outDate: '',
-          outTime: '',
-          inDate: '',
-          inTime: '',
-          parentEmail: '',
-          parentPhone: ''
+        dispatch({
+          type: 'RESET_FORM',
+          payload: {
+            name: '',
+            email: bookingForm.email, // keep email if needed
+            department: '',
+            outDate: '',
+            outTime: '',
+            inDate: '',
+            inTime: '',
+            parentEmail: '',
+            parentPhone: ''
+          }
         });
         // Fetch latest bookings
         await fetchUserBookings(bookingForm.email);
       } else {
-        setError(response.error || 'Failed to create booking. Please try again.');
+        dispatch({ type: 'SET_ERROR', payload: response.error || 'Failed to create booking. Please try again.' });
       }
     } catch (error) {
       console.error('Booking error:', error);
-      setError(error.message || 'Failed to create booking. Please try again.');
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to create booking. Please try again.' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
   // Fetch booked slots for a user
   const fetchUserBookings = async (email) => {
     try {
-      setLoading(true);
+      dispatch({ type: 'SET_LOADING', payload: true });
       const bookingsData = await fetchBookedSlots(email);
       
       // Update bookings
@@ -350,15 +399,15 @@ const SlotBooking = () => {
       }
       
       // Clear any existing error
-      setError('');
+      dispatch({ type: 'SET_ERROR', payload: '' });
     } catch (error) {
       console.error('Error fetching user bookings:', error);
       // Don't set error if it's just that there are no bookings yet
       if (error.message !== 'No bookings found') {
-        setError('');
+        dispatch({ type: 'SET_ERROR', payload: '' });
       }
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
@@ -369,15 +418,17 @@ const SlotBooking = () => {
         : [...prevSlots, slot];              // Add slot if not selected
       
       // Update bookingForm.timeSlots as well
-      setBookingForm(prev => ({
-        ...prev,
-        timeSlots: newSlots
-      }));
+      dispatch({
+        type: 'SET_FORM',
+        payload: {
+          timeSlots: newSlots
+        }
+      });
       
       return newSlots;
     });
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
   }, []);
 
   // Function to check if a date is a weekend
@@ -412,33 +463,33 @@ const SlotBooking = () => {
   }, [bookedSlots]);
 
   const handleDeleteBooking = useCallback(async (bookingId) => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(bookingId);
-      setSuccess('Booking deleted successfully. You can now make a new request.');
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      setError(err.message || 'Failed to delete booking');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [bookingForm.email]);
 
   const handleDeleteWaiting = useCallback(async () => {
     if (!waitingBooking) return;
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
+    dispatch({ type: 'SET_SUCCESS', payload: '' });
     try {
       await deleteBookedSlot(waitingBooking.id);
-      setSuccess('Booking deleted successfully. You can now make a new request.');
+      dispatch({ type: 'SET_SUCCESS', payload: 'Booking deleted successfully. You can now make a new request.' });
       await fetchUserBookings(bookingForm.email);
     } catch (err) {
-      setError(err.message || 'Failed to delete booking');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete booking' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [waitingBooking, bookingForm.email]);
 
@@ -462,6 +513,12 @@ const SlotBooking = () => {
       .filter(b => b.status === 'confirmed')
   , [bookedSlots]);
 
+  // Define memoized callback factories
+  const handleDeleteBookingCb = useCallback((id) => () => handleDeleteBooking(id), [handleDeleteBooking]);
+  const handleSlotSelectCb = useCallback((slot) => handleSlotSelect(slot), [handleSlotSelect]);
+  const handleStatusFilterCb = useCallback((status) => handleStatusFilter(status), [handleStatusFilter]);
+  const handleDeleteWaitingCb = useCallback(() => handleDeleteWaiting(), [handleDeleteWaiting]);
+
   return (
     <div className="slot-booking-container">
       <h2>Request Outing</h2>
@@ -477,7 +534,7 @@ const SlotBooking = () => {
           You already have a pending or active outing request. Please complete or delete it before making a new one.
           {waitingBooking && (
             <div style={{ marginTop: 12 }}>
-              <button onClick={handleDeleteWaiting} disabled={loading} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
+              <button onClick={handleDeleteWaitingCb} disabled={loading} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
                 {loading ? 'Deleting...' : 'Delete Waiting Request'}
               </button>
             </div>
@@ -603,7 +660,7 @@ const SlotBooking = () => {
               <div
                 key={slot}
                 className={`time-slot-item ${!slot.available ? 'disabled' : ''} ${selectedSlots.includes(slot) ? 'selected' : ''}`}
-                onClick={() => slot.available && handleSlotSelect(slot)}
+                onClick={() => slot.available && handleSlotSelectCb(slot)}
                 style={{ cursor: slot.available ? 'pointer' : 'not-allowed' }}
               >
                 <div className="time-slot-time">{formatTimeSlotForDisplay(slot)}</div>
@@ -701,7 +758,7 @@ const SlotBooking = () => {
                 <div><b>In Time:</b> {currentBooking.in_time}</div>
                 <div><b>Status:</b> {currentBooking.status}</div>
                 {currentBooking.status === 'waiting' && (
-                  <button onClick={() => handleDeleteBooking(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
+                  <button onClick={handleDeleteBookingCb(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
                     {loading ? 'Deleting...' : 'Delete'}
             </button>
                 )}
