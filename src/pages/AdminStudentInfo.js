@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useReducer } from 'react';
 import debounce from 'lodash.debounce';
-import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
+import { 
+    addOrUpdateStudentInfo, 
+    fetchAllStudentInfo, 
+    deleteStudentInfo, 
+    banStudent, 
+    fetchAdminInfoByEmail, 
+    fetchAllBans, 
+    deleteBan,
+    checkAndAutoUnban
+} from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import { FixedSizeList as List } from 'react-window';
@@ -48,6 +57,8 @@ const AdminStudentInfo = () => {
     const [adminHostels, setAdminHostels] = useState([]);
     const [banStatuses, setBanStatuses] = useState({});
     const [unbanLoading, setUnbanLoading] = useState({});
+    const [adminEmail, setAdminEmail] = useState('');
+    const [toast, setToast] = useState({ message: '', type: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 50; // Or make this configurable
@@ -97,24 +108,21 @@ const AdminStudentInfo = () => {
     }, []);
 
     useEffect(() => {
+        const fetchRoleAndEmail = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email) {
+                setAdminEmail(user.email);
+                const adminInfo = await fetchAdminInfoByEmail(user.email);
+                setAdminRole(adminInfo?.role || '');
+                setAdminHostels(adminInfo?.hostels || []);
+            }
+        };
         fetchInfo();
         fetchBans();
-    }, [fetchInfo, fetchBans, currentPage]);
+        fetchRoleAndEmail();
+    }, [fetchInfo, fetchBans]);
 
     useEffect(() => {
-        const fetchRole = async () => {
-            supabase.auth.getUser().then(async ({ data: { user } }) => {
-                if (user?.email) {
-                    const adminInfo = await fetchAdminInfoByEmail(user.email);
-                    setAdminRole(adminInfo?.role || '');
-                    setAdminHostels(adminInfo?.hostels || []);
-                }
-            });
-        };
-        fetchRole();
-    }, []);
-
-     useEffect(() => {
       Object.keys(banStatuses).forEach(email => {
         const isBanned = banStatuses[email];
         if (isBanned) {
@@ -155,6 +163,7 @@ const AdminStudentInfo = () => {
             console.log("Upsert result:", result);
             if (result) {
                 dispatch({ type: 'CLOSE_FORM' });
+                setToast({ message: 'Student info saved successfully!', type: 'success' });
                 fetchInfo(); // Refresh student list
             }
         } catch (err) {
@@ -209,8 +218,8 @@ const AdminStudentInfo = () => {
           }
         }
         fetchInfo();
-        if (successCount > 0) setUploadMessage(`${successCount} row(s) added/updated successfully.`);
-        if (errorCount > 0) setUploadError(`${errorCount} row(s) failed to add/update.`);
+        if (successCount > 0) setToast({ message: `${successCount} row(s) added/updated successfully.`, type: 'success' });
+        if (errorCount > 0) setToast({ message: `${errorCount} row(s) failed to add/update.`, type: 'error' });
     };
 
     const handleBanSubmit = useCallback(async () => {
@@ -229,23 +238,22 @@ const AdminStudentInfo = () => {
         setSuccess('');
 
         try {
-            const banData = {
+            await banStudent({
                 student_email: uiState.banModal.info.student_email,
                 from_date: uiState.banModal.from,
                 till_date: uiState.banModal.till,
-                reason: uiState.banModal.reason || null,
-                banned_by: adminEmail
-            };
-
-            await banStudent(banData);
+                reason: uiState.banModal.reason,
+                banned_by: adminEmail,
+            });
             dispatch({ type: 'CLOSE_BAN_MODAL' });
+            setToast({ message: 'Student banned successfully!', type: 'success' });
             fetchBans(); // Call fetchBans after banning
         } catch (err) {
             setError(err.message || 'Failed to ban student');
         } finally {
             setLoading(false);
         }
-    }, [uiState.banModal, fetchBans]);
+    }, [uiState.banModal, fetchBans, adminEmail]);
 
     const handleUnban = useCallback(async (student_email) => {
         if (!banStatuses[student_email]) return;
@@ -337,6 +345,8 @@ const AdminStudentInfo = () => {
             
             {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
             
+            {toast.message && <div className={`toast ${toast.type}`}>{toast.message}</div>}
+
             <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <input
                     type="text"
