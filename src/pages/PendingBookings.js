@@ -166,29 +166,37 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
 
   // Bookings filtered by hostel/warden/admin, but NOT by date
-  const hostelFilteredBookings = useMemo(() => bookings.filter(booking => {
-    if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
-      const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
-      if (!normalizedHostels.includes('all')) {
-        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-        if (!normalizedHostels.includes(bookingHostel)) return false;
+  const hostelFilteredBookings = useMemo(() => {
+    const filtered = bookings.filter(booking => {
+      if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
+        const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
+        if (!normalizedHostels.includes('all')) {
+          const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+          if (!normalizedHostels.includes(bookingHostel)) return false;
+        }
       }
-    }
-    if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
-      const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
-    }
-    return true;
-  }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
+      if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
+        const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
+        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+        if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+      }
+      return true;
+    });
+    console.log('hostelFilteredBookings:', filtered);
+    return filtered;
+  }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
   // Tab counts: status counts from hostelFilteredBookings (not date filtered)
-  const tabCounts = useMemo(() => ({
-    waiting: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
-    still_out: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
-    confirmed: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
-    rejected: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
-  }), [hostelFilteredBookings]);
+  const tabCounts = useMemo(() => {
+    const counts = {
+      waiting: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
+      still_out: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
+      confirmed: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
+      rejected: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
+    };
+    console.log('tabCounts:', counts);
+    return counts;
+  }, [hostelFilteredBookings]);
 
   // Bookings filtered by hostel/warden/admin AND date
   const filteredBookings = useMemo(() => hostelFilteredBookings.filter(booking => {
