@@ -237,10 +237,6 @@ const SlotBooking = () => {
       .filter(b => b.status === 'confirmed')
   , [bookedSlots]);
 
-  const waitingBooking = useMemo(() =>
-    (bookedSlots || []).find(b => b.status === 'waiting'),
-  [bookedSlots]);
-
   const handleDeleteBookingFactory = useCallback((id) => () => handleDeleteBooking(id), [handleDeleteBooking]);
 
   return (
