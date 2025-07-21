@@ -152,6 +152,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [editInTime, wardenLoggedIn, wardenEmail, fetchAndSetAllBookings]);
 
+  // Manual refresh button handler
+  // Remove the handleManualRefresh function and the Refresh button from the render
+
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
     const filtered = bookings.filter(booking => {
@@ -252,9 +255,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     <div className="pending-bookings-page">
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'info' })} />
       <h2>Outing Requests</h2>
-      <button onClick={handleManualRefresh} style={{ marginBottom: 12 }}>Refresh</button>
-      {success && <div className="success-message">{success}</div>}
-      {error && <div className="error-message">{error}</div>}
       
       <div className="status-tabs">
         <button
