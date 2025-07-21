@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useReducer } from 'react';
+import debounce from 'lodash.debounce';
 import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
+import { FixedSizeList as List } from 'react-window';
 
 const initialFormState = {
   id: null, student_name: '', student_email: '', student_phone: '', parent_name: '', parent_phone: '', hostel_name: '', room_no: ''
@@ -46,23 +48,42 @@ const AdminStudentInfo = () => {
     const [adminHostels, setAdminHostels] = useState([]);
     const [banStatuses, setBanStatuses] = useState({});
     const [unbanLoading, setUnbanLoading] = useState({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 50; // Or make this configurable
 
     const [uiState, dispatch] = useReducer(uiReducer, initialState);
+
+    const [filter, setFilter] = useState('');
+
+    const debouncedSetSearchTerm = useCallback(
+        debounce((value) => {
+            setFilter(value);
+        }, 300), // 300ms delay
+        []
+    );
+
+    const handleSearchChange = (e) => {
+        const { value } = e.target;
+        setSearchTerm(value);
+        debouncedSetSearchTerm(value);
+    };
 
 
     const fetchInfo = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetchAllStudentInfo();
+            const { data, count } = await fetchAllStudentInfo(currentPage, pageSize);
             console.log('Fetched student info:', data); // DEBUG LOG
             setStudentInfo(data || []);
+            setTotalPages(Math.ceil(count / pageSize));
         } catch (err) {
             setError(err.message || 'Failed to fetch student info');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [currentPage, pageSize]);
 
     const fetchBans = useCallback(async () => {
         const allBans = await fetchAllBans();
@@ -78,7 +99,7 @@ const AdminStudentInfo = () => {
     useEffect(() => {
         fetchInfo();
         fetchBans();
-    }, [fetchInfo, fetchBans]);
+    }, [fetchInfo, fetchBans, currentPage]);
 
     useEffect(() => {
         const fetchRole = async () => {
@@ -253,7 +274,7 @@ const AdminStudentInfo = () => {
             const studentName = (info.student_name || '').toLowerCase();
             const studentEmail = (info.student_email || '').toLowerCase();
             const hostelName = (info.hostel_name || '').toLowerCase();
-            const search = searchTerm.toLowerCase();
+            const search = filter.toLowerCase(); // Use the debounced filter state
 
             // Warden hostel filter
             if (wardenLoggedIn && Array.isArray(adminHostels) && adminHostels.length > 0) {
@@ -264,17 +285,51 @@ const AdminStudentInfo = () => {
             
             return studentName.includes(search) || studentEmail.includes(search) || hostelName.includes(search);
         });
-    }, [studentInfo, searchTerm, wardenLoggedIn, adminHostels]);
+    }, [studentInfo, filter, wardenLoggedIn, adminHostels]); // Depend on debounced filter
 
     console.log('banStatuses:', banStatuses); // DEBUG LOG
-
-    const handleSearchTermChange = useCallback((e) => {
-        setSearchTerm(e.target.value);
-    }, []);
 
     const handleShowUpload = useCallback(() => {
         setShowUpload(prev => !prev);
     }, []);
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    const Row = ({ index, style }) => {
+        const info = filteredInfo[index];
+        const isBanned = banStatuses[info.student_email];
+
+        return (
+            <div style={style}>
+                <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
+                    <div style={{ padding: 8, width: '150px', flexShrink: 0 }}>{info.student_name}</div>
+                    <div style={{ padding: 8, width: '200px', flexShrink: 0 }}>{info.student_email}</div>
+                    <div style={{ padding: 8, width: '120px', flexShrink: 0 }}>{info.student_phone}</div>
+                    <div style={{ padding: 8, width: '150px', flexShrink: 0 }}>{info.parent_name}</div>
+                    <div style={{ padding: 8, width: '120px', flexShrink: 0 }}>{info.parent_phone}</div>
+                    <div style={{ padding: 8, width: '100px', flexShrink: 0 }}>{info.hostel_name}</div>
+                    <div style={{ padding: 8, width: '80px', flexShrink: 0 }}>{info.room_no}</div>
+                    {adminRole === 'superadmin' && !wardenLoggedIn && (
+                        <div style={{ padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}>Edit</button>
+                            <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}>Delete</button>
+                            <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }}>Ban</button>
+                            {isBanned && (
+                                <>
+                                    <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px' }}>BANNED</span>
+                                    <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', cursor: 'pointer' }} disabled={unbanLoading[info.student_email]}>
+                                        {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
@@ -287,7 +342,7 @@ const AdminStudentInfo = () => {
                     type="text"
                     placeholder="Search by name, email, or hostel..."
                     value={searchTerm}
-                    onChange={handleSearchTermChange}
+                    onChange={handleSearchChange} // Use the new handler
                     style={{ padding: '0.5rem', width: '300px', borderRadius: '4px', border: '1px solid #ccc' }}
                 />
                 <div>
@@ -335,49 +390,40 @@ const AdminStudentInfo = () => {
                 </div>
             )}
 
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', marginTop: '1rem' }}>
-                    <thead>
-                        <tr style={{ background: '#f2f2f2' }}>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Student Name</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Email</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Phone</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Parent Name</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Parent Phone</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Hostel</th>
-                            <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Room</th>
-                            {!wardenLoggedIn && <th style={{ border: '1px solid #ccc', padding: 8, textAlign: 'left' }}>Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredInfo.map(info => (
-                            <tr key={info.id}>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.student_name}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.student_email}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.student_phone}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_name}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_phone}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.hostel_name}</td>
-                                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.room_no}</td>
-                                {adminRole === 'superadmin' && !wardenLoggedIn && (
-                                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
-                                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
-                                    <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
-                                    {banStatuses[info.student_email] && (
-                                        <>
-                                        <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
-                                        <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
-                                            {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
-                                        </button>
-                                        </>
-                                    )}
-                                </td>
-                                )}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div style={{ border: '1px solid #ccc' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', fontWeight: 'bold', background: '#f2f2f2', borderBottom: '1px solid #ccc' }}>
+                    <div style={{ padding: 8, width: '150px', flexShrink: 0 }}>Student Name</div>
+                    <div style={{ padding: 8, width: '200px', flexShrink: 0 }}>Email</div>
+                    <div style={{ padding: 8, width: '120px', flexShrink: 0 }}>Phone</div>
+                    <div style={{ padding: 8, width: '150px', flexShrink: 0 }}>Parent Name</div>
+                    <div style={{ padding: 8, width: '120px', flexShrink: 0 }}>Parent Phone</div>
+                    <div style={{ padding: 8, width: '100px', flexShrink: 0 }}>Hostel</div>
+                    <div style={{ padding: 8, width: '80px', flexShrink: 0 }}>Room</div>
+                    {adminRole === 'superadmin' && !wardenLoggedIn && <div style={{ padding: 8, flexGrow: 1 }}>Actions</div>}
+                </div>
+                {/* Virtualized List */}
+                <List
+                    height={400} // Adjust height as needed
+                    itemCount={filteredInfo.length}
+                    itemSize={65} // Adjust itemSize to match your row height
+                    width={'100%'}
+                >
+                    {Row}
+                </List>
+            </div>
+
+            {/* Pagination Controls */}
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '1rem' }}>
+                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+                    Previous
+                </button>
+                <span style={{ margin: '0 1rem' }}>
+                    Page {currentPage} of {totalPages}
+                </span>
+                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+                    Next
+                </button>
             </div>
 
             {uiState.banModal.open && (

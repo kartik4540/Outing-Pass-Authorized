@@ -4,6 +4,7 @@ import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBook
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
+import { FixedSizeList as List } from 'react-window';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
   const [bookings, setBookings] = useState([]);
@@ -290,6 +291,93 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const handleSaveInTimeFactory = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
   const handleSendStillOutAlertFactory = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
 
+  const BookingRow = ({ index, style }) => {
+    const booking = filteredBookings[index];
+    const isBanned = banStatuses[booking.student_email];
+    
+    return (
+      <div style={style}>
+        <div className={`booking-card status-${booking.status.toLowerCase()}`}>
+          {isBanned && (
+            <div style={{ color: 'red', fontWeight: 'bold', marginBottom: '10px' }}>
+              STUDENT BANNED
+            </div>
+          )}
+          <div className="booking-info">
+            <div className="info-group">
+              <h3>User Details</h3>
+              <p><strong>Name:</strong> {booking.name}</p>
+              <p><strong>Email:</strong> {booking.email}
+                {banStatuses[booking.email] && (
+                  <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 8px', fontWeight: 600, marginLeft: 6, fontSize: 12 }}>BANNED</span>
+                )}
+              </p>
+              <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
+              <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
+            </div>
+            <div className="info-group">
+              <h3>Booking Details</h3>
+              <p><strong>Out Date:</strong> {booking.out_date}</p>
+              <p><strong>Out Time:</strong> {booking.out_time}</p>
+              <p><strong>In Date:</strong> {booking.in_date}</p>
+              {selectedStatus === 'waiting' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
+                  <input
+                    id={`inTime-${booking.id}`}
+                    type="time"
+                    value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
+                    onChange={e => handleInTimeChange(booking.id, e.target.value)}
+                    disabled={savingInTimeId === booking.id}
+                    style={{ width: '120px' }}
+                  />
+                  <button
+                    onClick={handleSaveInTimeFactory(booking.id)}
+                    disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
+                    style={{ padding: '4px 10px', fontSize: '0.95em' }}
+                  >
+                    {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              ) : (
+                <p><strong>In Time:</strong> {booking.in_time}</p>
+              )}
+              {booking.handled_by && booking.status !== 'waiting' && (
+                <p className="handled-time">
+                  <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
+                </p>
+              )}
+            </div>
+          </div>
+          {selectedStatus === 'waiting' && (
+            <div className="action-buttons">
+              <button
+                onClick={handleProcessBookingConfirm(booking.id)}
+                className="confirm-button"
+                disabled={loading}
+              >
+                Confirm
+              </button>
+              <button
+                onClick={handleProcessBookingReject(booking.id)}
+                className="reject-button"
+                disabled={loading}
+              >
+                Reject
+              </button>
+            </div>
+          )}
+          {selectedStatus === 'still_out' && (
+            <div className="still-out-actions">
+              <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
+              <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
@@ -339,81 +427,20 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       
       {filteredBookings.length > 0 ? (
         <div className="bookings-list">
-          {filteredBookings.map(booking => (
-            <div key={booking.id} className="booking-card">
-              <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
-              <div className="booking-info">
-                <div className="info-group">
-                  <h3>User Details</h3>
-                  <p><strong>Name:</strong> {booking.name}</p>
-                  <p><strong>Email:</strong> {booking.email}
-                    {banStatuses[booking.email] && (
-                      <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 8px', fontWeight: 600, marginLeft: 6, fontSize: 12 }}>BANNED</span>
-                    )}
-                  </p>
-                  <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
-                  <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
-                </div>
-                <div className="info-group">
-                  <h3>Booking Details</h3>
-                  <p><strong>Out Date:</strong> {booking.out_date}</p>
-                  <p><strong>Out Time:</strong> {booking.out_time}</p>
-                  <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {selectedStatus === 'waiting' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
-                      <input
-                        id={`inTime-${booking.id}`}
-                        type="time"
-                        value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                        onChange={e => handleInTimeChange(booking.id, e.target.value)}
-                        disabled={savingInTimeId === booking.id}
-                        style={{ width: '120px' }}
-                      />
-                      <button
-                        onClick={handleSaveInTimeFactory(booking.id)}
-                        disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
-                        style={{ padding: '4px 10px', fontSize: '0.95em' }}
-                      >
-                        {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  ) : (
-                  <p><strong>In Time:</strong> {booking.in_time}</p>
-                  )}
-                  {booking.handled_by && booking.status !== 'waiting' && (
-                    <p className="handled-time">
-                      <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {selectedStatus === 'waiting' && (
-                <div className="action-buttons">
-                  <button
-                    onClick={handleProcessBookingConfirm(booking.id)}
-                    className="confirm-button"
-                    disabled={loading}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={handleProcessBookingReject(booking.id)}
-                    className="reject-button"
-                    disabled={loading}
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-              {selectedStatus === 'still_out' && (
-                <div className="still-out-actions">
-                  <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
-                  <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
-                </div>
-              )}
-            </div>
-          ))}
+          {loading ? (
+            <div className="loading">Loading bookings...</div>
+          ) : error ? (
+            <div className="error">{error}</div>
+          ) : (
+            <List
+              height={600} // Adjust height as needed
+              itemCount={filteredBookings.length}
+              itemSize={250} // Adjust this to the average height of your booking cards
+              width={'100%'}
+            >
+              {BookingRow}
+            </List>
+          )}
         </div>
       ) : (
         <div className="no-bookings">No {selectedStatus} requests available</div>

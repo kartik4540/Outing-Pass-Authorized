@@ -3,11 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { 
     fetchDayOrder, 
     fetchTimeSlots, 
-    bookSlot, 
     fetchBookedSlots, 
     deleteBooking,
     checkStudentBanStatus,
-    checkAndAutoUnban
+    checkAndAutoUnban,
+    addBookingRequest // Use the new function
 } from '../services/api';
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
@@ -145,7 +145,7 @@ const SlotBooking = () => {
          dispatch({ type: 'TOGGLE_SLOT_SELECTION', payload: { slot, dayOrder: dayOrder?.day_order } });
     }, [dayOrder]);
 
-    const handleBookingSubmit = async (e) => {
+    const handleFormSubmit = async (e) => {
         e.preventDefault();
         if (selectedSlots.length === 0 || !booking.reason) {
             dispatch({ type: 'SET_ERROR', payload: 'Please select at least one time slot and provide a reason.' });
@@ -162,8 +162,17 @@ const SlotBooking = () => {
                     reason: booking.reason,
                     status: 'waiting',
                     student_email: user.email,
+                    // Add other relevant fields from the form
+                    out_date: booking.outDate,
+                    out_time: booking.outTime,
+                    in_date: booking.inDate,
+                    in_time: booking.inTime,
+                    parent_email: user?.user_metadata?.parent_email,
+                    parent_phone: user?.user_metadata?.parent_phone,
+                    name: user?.user_metadata?.full_name,
+                    hostel_name: user?.user_metadata?.hostel_name,
                 };
-                return bookSlot(bookingData);
+                return addBookingRequest(bookingData);
             });
 
             await Promise.all(bookingPromises);
@@ -241,7 +250,8 @@ const SlotBooking = () => {
                 </div>
             )}
             
-            <form onSubmit={handleBookingSubmit} className="booking-form" style={{ pointerEvents: blockBooking ? 'none' : 'auto', opacity: blockBooking ? 0.5 : 1 }}>
+            {/* The form now directly calls the new onSubmit handler */}
+            <form onSubmit={handleFormSubmit} className="booking-form" style={{ pointerEvents: blockBooking ? 'none' : 'auto', opacity: blockBooking ? 0.5 : 1 }}>
                 <label htmlFor="name">Full Name:</label>
                 <input 
                     type="text" 

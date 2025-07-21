@@ -9,98 +9,8 @@ import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturne
  * @returns {Error} - Formatted error
  */
 const handleError = (error) => {
-  console.error('API error:', error);
+  // console.error('API error:', error); // Removed for production
   return new Error(error.message || 'An error occurred with the Supabase request');
-};
-
-/**
- * Fetch available seats for a given date and lab
- * @param {string} date - The date to fetch available seats for
- * @param {string} lab - The lab to fetch available seats for
- * @returns {Promise<Object>} - Available seats data
- */
-export const fetchAvailableSeats = async (date, lab) => {
-  try {
-    // Query available_seats view or function in Supabase
-    const { data: existingBookings, error } = await supabase
-      .from('outing_requests')
-      .select('*')
-      .eq('date', date)
-      .eq('lab', lab)
-      .in('status', ['confirmed', 'waiting']); // Check both confirmed and waiting bookings
-    
-    if (error) throw error;
-    
-    // Transform data to match the expected format
-    const bookedSlots = existingBookings ? existingBookings.map(booking => booking.time_slot) : [];
-    
-    // Get all time slots
-    const allTimeSlots = [
-      "08:00-08:50", "08:50-09:40", "09:45-10:35", 
-      "10:40-11:30", "11:35-12:25", "12:30-01:20", 
-      "01:25-02:15", "02:20-03:10", "03:10-04:00", 
-      "04:00-04:50"
-    ];
-    
-    // Calculate available slots
-    const availableSlots = allTimeSlots.map(slot => {
-      const isBooked = bookedSlots.includes(slot);
-      return {
-        time_slot: slot,
-        available: !isBooked,
-        status: isBooked ? 'booked' : 'available'
-      };
-    });
-    
-    return { 
-      availableSlots
-    };
-  } catch (error) {
-    throw handleError(error);
-  }
-};
-
-/**
- * Book a lab slot
- * @param {Object} bookingData - The booking data
- * @returns {Promise<Object>} - Booking confirmation
- */
-export const bookSlot = async (bookingData) => {
-  try {
-    // Validate required fields
-    if (!bookingData.name || !bookingData.email || !bookingData.hostelName || !bookingData.outDate || !bookingData.outTime || !bookingData.inDate || !bookingData.inTime) {
-      throw new Error('Missing required fields: name, email, hostel, out date/time, in date/time are required.');
-    }
-
-    // Insert the outing request into the database
-    const { data, error } = await supabase
-      .from('outing_requests')
-      .insert([
-        {
-          name: bookingData.name,
-          email: bookingData.email,
-          hostel_name: bookingData.hostelName,
-          out_date: bookingData.outDate,
-          out_time: bookingData.outTime,
-          in_date: bookingData.inDate,
-          in_time: bookingData.inTime,
-          parent_email: bookingData.parentEmail,
-          parent_phone: bookingData.parentPhone, // NEW: include parent_phone
-          status: 'waiting'
-        }
-      ])
-      .select();
-
-    if (error) throw error;
-
-    return {
-      success: true,
-      message: 'Outing request submitted successfully!',
-      booking: data[0]
-    };
-  } catch (error) {
-    throw handleError(error);
-  }
 };
 
 /**
@@ -334,18 +244,25 @@ export async function addOrUpdateStudentInfo(info) {
 }
 
 /**
- * Fetch all student info (admin only)
- * @returns {Promise<Array>} - Array of student info
+ * Fetch all student info (admin only) with pagination
+ * @param {number} page - The page number to fetch
+ * @param {number} pageSize - The number of items per page
+ * @returns {Promise<Object>} - Object containing student info and total count
  */
-export const fetchAllStudentInfo = async () => {
+export const fetchAllStudentInfo = async (page = 1, pageSize = 50) => {
   try {
-    const { data, error } = await supabase
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabase
       .from('student_info')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('student_email', { ascending: true })
-      .range(0, 9999); // fetch up to 10,000 rows
+      .range(from, to);
+
     if (error) throw error;
-    return data;
+
+    return { data, count };
   } catch (error) {
     throw handleError(error);
   }
@@ -714,4 +631,17 @@ export const checkAndAutoUnban = async (studentEmail) => {
   } catch (error) {
     throw handleError(error);
   }
+};
+
+export const addBookingRequest = async (bookingData) => {
+    try {
+        const { data, error } = await supabase
+            .from('outing_requests')
+            .insert([bookingData])
+            .select();
+        if (error) throw error;
+        return { success: true, data: data[0] };
+    } catch (error) {
+        throw handleError(error);
+    }
 };
