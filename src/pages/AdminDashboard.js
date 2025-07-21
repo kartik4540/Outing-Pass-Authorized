@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { fetchPendingBookings, handleBookingAction } from '../services/api';
 import './AdminDashboard.css';
@@ -12,9 +12,6 @@ const AdminDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [processingBookingId, setProcessingBookingId] = useState(null);
   const [isTabSwitchLocked, setIsTabSwitchLocked] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     const initializeAdmin = async () => {
@@ -108,18 +105,6 @@ const AdminDashboard = () => {
     setSelectedStatus(status);
     setError('');
   };
-
-  const handleSearchChange = useCallback((e) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleDateFilterChange = useCallback((e) => {
-    setDateFilter(e.target.value);
-  }, []);
-
-  const handleStatusFilterChange = useCallback((e) => {
-    setStatusFilter(e.target.value);
-  }, []);
 
   // Client-side filtering with strict status check and additional validation
   const filteredBookings = useMemo(() => bookings.filter(booking => {

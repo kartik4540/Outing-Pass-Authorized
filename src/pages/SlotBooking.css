@@ -590,6 +590,153 @@ button:disabled {
   }
 }
 
+/* Time Slot Select Styles */
+.time-slot-select option:disabled {
+  color: #999;
+  font-style: italic;
+}
+
+.slot-full {
+  color: #999;
+  font-style: italic;
+}
+
+/* Time Slots Grid */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.time-slot-item {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.time-slot-item:hover:not(.disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-color: #1a73e8;
+}
+
+.time-slot-item.selected {
+  background: #e8f0fe;
+  border-color: #1a73e8;
+}
+
+.time-slot-item.disabled {
+  opacity: 0.8;
+  background: #f5f5f5;
+  border-color: #ddd;
+  position: relative;
+}
+
+.time-slot-item.disabled::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.05),
+    rgba(0, 0, 0, 0.05) 10px,
+    rgba(0, 0, 0, 0.08) 10px,
+    rgba(0, 0, 0, 0.08) 20px
+  );
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.time-slot-time {
+  font-weight: 500;
+  color: #333;
+}
+
+.time-slot-status {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+/* Selected Slots Section */
+.selected-slots {
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.selected-slots h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.selected-slots-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selected-slot-item {
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remove-slot {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-size: 1.2em;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.remove-slot:hover {
+  background: #d2e3fc;
+}
+
+/* Update Booking Button for Multiple Slots */
+.booking-button {
+  min-width: 200px;
+}
+
+.booking-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .time-slots-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .selected-slots {
+    padding: 15px;
+  }
+}
+
 /* Date picker styles */
 input[type="date"] {
   padding: 8px;
