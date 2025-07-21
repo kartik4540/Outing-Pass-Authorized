@@ -227,24 +227,23 @@ const AdminStudentInfo = () => {
   }, [banStatuses]);
 
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
-  const wardenHostels = useMemo(() => {
-    return wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
-  }, [wardenLoggedIn]);
+  const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
   // Filtered list based on search and warden hostel
   const filteredInfo = useMemo(() => {
     const q = search.toLowerCase();
-    return studentInfo.filter(info => {
-      const matches =
-        info.student_email.toLowerCase().includes(q) ||
-        info.hostel_name.toLowerCase().includes(q) ||
-        (info.parent_email && info.parent_email.toLowerCase().includes(q));
-      if (wardenLoggedIn && wardenHostels.length > 0) {
-        // Only show students from the warden's hostel(s)
-        return matches && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
-      }
-      return matches;
-    })
+    const matchesSearch =
+      studentInfo.filter(info => {
+        const matches =
+          info.student_email.toLowerCase().includes(q) ||
+          info.hostel_name.toLowerCase().includes(q) ||
+          (info.parent_email && info.parent_email.toLowerCase().includes(q));
+        if (wardenLoggedIn && wardenHostels.length > 0) {
+          // Only show students from the warden's hostel(s)
+          return matches && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
+        }
+        return matches;
+      })
   }, [studentInfo, search, wardenLoggedIn, wardenHostels]);
 
   return (

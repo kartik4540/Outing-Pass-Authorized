@@ -51,6 +51,7 @@ const SlotBooking = () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          setUser(user);
           let name = user.user_metadata?.full_name || user.email;
           let email = user.email;
           let department = '';
@@ -365,6 +366,13 @@ const SlotBooking = () => {
   }, []);
 
   // Function to check if a date is a weekend
+  const isWeekend = (date) => {
+    const day = new Date(date).getDay();
+    // 0 is Sunday, 6 is Saturday
+    return day === 0 || day === 6;
+  };
+
+  // Function to check if a date should be disabled (weekends)
   const isDateDisabled = (date) => {
     const currentDate = new Date(date);
     return currentDate.getDay() === 0 || currentDate.getDay() === 6; // 0 is Sunday, 6 is Saturday
