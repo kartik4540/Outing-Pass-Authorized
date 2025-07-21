@@ -1,54 +1,23 @@
-import React, { useReducer, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 
-// Define initial state and reducer
-const initialState = {
-  form: { student_email: '', hostel_name: '', parent_email: '', parent_phone: '' },
-  loading: false,
-  error: '',
-  success: '',
-  uploadMessage: '',
-  uploadError: '',
-  banModal: { open: false, info: null, from: '', till: '', reason: '' },
-  unbanLoading: {},
-};
-function reducer(state, action) {
-  switch (action.type) {
-    case 'SET_FORM':
-      return { ...state, form: { ...state.form, ...action.payload } };
-    case 'RESET_FORM':
-      return { ...state, form: { ...initialState.form, ...action.payload } };
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_SUCCESS':
-      return { ...state, success: action.payload };
-    case 'SET_UPLOAD_MESSAGE':
-      return { ...state, uploadMessage: action.payload };
-    case 'SET_UPLOAD_ERROR':
-      return { ...state, uploadError: action.payload };
-    case 'SET_BAN_MODAL':
-      return { ...state, banModal: { ...state.banModal, ...action.payload } };
-    case 'SET_UNBAN_LOADING':
-      return { ...state, unbanLoading: { ...state.unbanLoading, ...action.payload } };
-    default:
-      return state;
-  }
-}
-
 const AdminStudentInfo = () => {
   const [studentInfo, setStudentInfo] = useState([]);
   const [editing, setEditing] = useState(null); // id or null
+  const [form, setForm] = useState({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminRole, setAdminRole] = useState('');
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [banModal, setBanModal] = useState({ open: false, info: null, from: '', till: '', reason: '' });
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
-
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const { form, loading, error, success, uploadMessage, uploadError, banModal, unbanLoading } = state;
+  const [unbanLoading, setUnbanLoading] = useState({}); // { student_email: boolean }
 
   useEffect(() => {
     loadStudentInfo();
@@ -73,87 +42,92 @@ const AdminStudentInfo = () => {
   }, []);
 
   const loadStudentInfo = async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: '' });
+    setLoading(true);
+    setError('');
     try {
       const data = await fetchAllStudentInfo();
       console.log('Fetched student info:', data); // DEBUG LOG
       setStudentInfo(data || []);
       await fetchBans(); // Call fetchBans after loading student info
     } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch student info' });
+      setError(err.message || 'Failed to fetch student info');
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setLoading(false);
     }
   };
 
   const handleEdit = useCallback((info) => {
     setEditing(info.id);
-    dispatch({ type: 'SET_FORM', payload: { student_email: info.student_email, hostel_name: info.hostel_name, parent_email: info.parent_email, parent_phone: info.parent_phone || '' } });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
-    dispatch({ type: 'SET_ERROR', payload: '' });
+    setForm({
+      student_email: info.student_email,
+      hostel_name: info.hostel_name,
+      parent_email: info.parent_email,
+      parent_phone: info.parent_phone || ''
+    });
+    setSuccess('');
+    setError('');
   }, []);
 
   const handleAddNew = useCallback(() => {
     setEditing('new');
-    dispatch({ type: 'RESET_FORM', payload: { student_email: '', hostel_name: '', parent_email: '', parent_phone: '' } });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
-    dispatch({ type: 'SET_ERROR', payload: '' });
+    setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
+    setSuccess('');
+    setError('');
   }, []);
 
   const handleCancel = useCallback(() => {
     setEditing(null);
-    dispatch({ type: 'RESET_FORM', payload: { student_email: '', hostel_name: '', parent_email: '', parent_phone: '' } });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
-    dispatch({ type: 'SET_ERROR', payload: '' });
+    setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
+    setSuccess('');
+    setError('');
   }, []);
 
   const handleChange = useCallback((e) => {
-    dispatch({ type: 'SET_FORM', payload: { [e.target.name]: e.target.value } });
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   }, []);
 
   const handleSave = useCallback(async (e) => {
     e.preventDefault();
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: '' });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
+    setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       const upsertResult = await addOrUpdateStudentInfo(form, adminEmail);
       console.log('Upsert result:', upsertResult); // DEBUG LOG
-      dispatch({ type: 'SET_SUCCESS', payload: 'Student info saved!' });
+      setSuccess('Student info saved!');
       setEditing(null);
-      dispatch({ type: 'RESET_FORM', payload: { student_email: '', hostel_name: '', parent_email: '', parent_phone: '' } });
+      setForm({ student_email: '', hostel_name: '', parent_email: '', parent_phone: '' });
       await loadStudentInfo();
       await fetchBans(); // Call fetchBans after saving
     } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to save student info' });
+      setError(err.message || 'Failed to save student info');
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setLoading(false);
     }
   }, [form, adminEmail]);
 
   // Add delete handler
   const handleDelete = useCallback(async (info) => {
     if (!window.confirm(`Are you sure you want to delete info for ${info.student_email}?`)) return;
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: '' });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
+    setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       await deleteStudentInfo(info.student_email); // You need to implement this in your API
-      dispatch({ type: 'SET_SUCCESS', payload: 'Student info deleted!' });
+      setSuccess('Student info deleted!');
       await loadStudentInfo();
       await fetchBans(); // Call fetchBans after deleting
     } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete student info' });
+      setError(err.message || 'Failed to delete student info');
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setLoading(false);
     }
   }, []);
 
   // Add this handler inside the component
   const handleExcelUpload = async (event) => {
-    dispatch({ type: 'SET_UPLOAD_MESSAGE', payload: '' });
-    dispatch({ type: 'SET_UPLOAD_ERROR', payload: '' });
+    setUploadMessage('');
+    setUploadError('');
     const file = event.target.files[0];
     if (!file) return;
     const data = await file.arrayBuffer();
@@ -181,25 +155,25 @@ const AdminStudentInfo = () => {
       }
     }
     loadStudentInfo();
-    if (successCount > 0) dispatch({ type: 'SET_UPLOAD_MESSAGE', payload: `${successCount} row(s) added/updated successfully.` });
-    if (errorCount > 0) dispatch({ type: 'SET_UPLOAD_ERROR', payload: `${errorCount} row(s) failed to add/update.` });
+    if (successCount > 0) setUploadMessage(`${successCount} row(s) added/updated successfully.`);
+    if (errorCount > 0) setUploadError(`${errorCount} row(s) failed to add/update.`);
   };
 
   // Add ban handler
   const handleBanSubmit = async () => {
     if (!banModal.from || !banModal.till) {
-      dispatch({ type: 'SET_ERROR', payload: 'Please select both From and Till dates' });
+      setError('Please select both From and Till dates');
       return;
     }
 
     if (new Date(banModal.from) > new Date(banModal.till)) {
-      dispatch({ type: 'SET_ERROR', payload: 'From date cannot be after Till date' });
+      setError('From date cannot be after Till date');
       return;
     }
 
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: '' });
-    dispatch({ type: 'SET_SUCCESS', payload: '' });
+    setLoading(true);
+    setError('');
+    setSuccess('');
 
     try {
       const banData = {
@@ -211,27 +185,27 @@ const AdminStudentInfo = () => {
       };
 
       await banStudent(banData);
-      dispatch({ type: 'SET_SUCCESS', payload: `Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}` });
-      dispatch({ type: 'SET_BAN_MODAL', payload: { open: false, info: null, from: '', till: '', reason: '' } });
+      setSuccess(`Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}`);
+      setBanModal({ open: false, info: null, from: '', till: '', reason: '' });
       await fetchBans(); // Call fetchBans after banning
     } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to ban student' });
+      setError(err.message || 'Failed to ban student');
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setLoading(false);
     }
   };
 
   const handleUnban = useCallback(async (student_email) => {
     if (!banStatuses[student_email]) return;
-    dispatch({ type: 'SET_UNBAN_LOADING', payload: { [student_email]: true } });
+    setUnbanLoading(l => ({ ...l, [student_email]: true }));
     try {
       await deleteBan(banStatuses[student_email].id);
       await fetchBans(); // Call fetchBans after unbanning
-      dispatch({ type: 'SET_SUCCESS', payload: 'Student unbanned successfully!' });
+      setSuccess('Student unbanned successfully!');
     } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to unban student' });
+      setError(err.message || 'Failed to unban student');
     } finally {
-      dispatch({ type: 'SET_UNBAN_LOADING', payload: { [student_email]: false } });
+      setUnbanLoading(l => ({ ...l, [student_email]: false }));
     }
   }, [banStatuses, fetchBans]);
 
@@ -254,16 +228,6 @@ const AdminStudentInfo = () => {
 
   console.log('banStatuses:', banStatuses); // DEBUG LOG
 
-  // Memoize all handlers
-  const handleEditCb = useCallback((info) => () => handleEdit(info), [handleEdit]);
-  const handleDeleteCb = useCallback((info) => () => handleDelete(info), [handleDelete]);
-  const handleAddNewCb = useCallback(() => handleAddNew(), [handleAddNew]);
-  const handleCancelCb = useCallback(() => handleCancel(), [handleCancel]);
-  const handleChangeCb = useCallback((e) => handleChange(e), [handleChange]);
-  const handleSaveCb = useCallback((e) => handleSave(e), [handleSave]);
-  const handleUnbanCb = useCallback((email) => () => handleUnban(email), [handleUnban]);
-  const setBanModalCb = useCallback((info) => () => dispatch({ type: 'SET_BAN_MODAL', payload: { open: true, info, from: '', till: '', reason: '' } }), [dispatch]);
-
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
       <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
@@ -285,7 +249,7 @@ const AdminStudentInfo = () => {
       )}
       {/* Only superadmin and not warden can add/upload */}
       {adminRole === 'superadmin' && !wardenLoggedIn && (
-        <button onClick={handleAddNewCb} style={{ marginBottom: 16 }}>Add New Student Info</button>
+        <button onClick={handleAddNew} style={{ marginBottom: 16 }}>Add New Student Info</button>
       )}
       {adminRole === 'superadmin' && !wardenLoggedIn && (
       <div style={{ marginBottom: 16 }}>
@@ -315,21 +279,21 @@ const AdminStudentInfo = () => {
             {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                <input name="student_email" value={form.student_email} onChange={handleChangeCb} placeholder="Student Email" />
+                <input name="student_email" value={form.student_email} onChange={handleChange} placeholder="Student Email" />
               </td>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                <input name="hostel_name" value={form.hostel_name} onChange={handleChangeCb} placeholder="Hostel Name" />
+                <input name="hostel_name" value={form.hostel_name} onChange={handleChange} placeholder="Hostel Name" />
               </td>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                <input name="parent_email" value={form.parent_email} onChange={handleChangeCb} placeholder="Parent Email" />
+                <input name="parent_email" value={form.parent_email} onChange={handleChange} placeholder="Parent Email" />
               </td>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                <input name="parent_phone" value={form.parent_phone} onChange={handleChangeCb} placeholder="Parent Phone" />
+                <input name="parent_phone" value={form.parent_phone} onChange={handleChange} placeholder="Parent Phone" />
               </td>
               <td style={{ border: '1px solid #ccc', padding: 8 }}></td>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                <button onClick={handleSaveCb} disabled={loading}>Save</button>
-                <button onClick={handleCancelCb} style={{ marginLeft: 8 }}>Cancel</button>
+                <button onClick={handleSave} disabled={loading}>Save</button>
+                <button onClick={handleCancel} style={{ marginLeft: 8 }}>Cancel</button>
               </td>
             </tr>
           )}
@@ -337,21 +301,21 @@ const AdminStudentInfo = () => {
             adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id ? (
               <tr key={info.id}>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  <input name="student_email" value={form.student_email} onChange={handleChangeCb} disabled />
+                  <input name="student_email" value={form.student_email} onChange={handleChange} disabled />
                 </td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  <input name="hostel_name" value={form.hostel_name} onChange={handleChangeCb} />
+                  <input name="hostel_name" value={form.hostel_name} onChange={handleChange} />
                 </td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  <input name="parent_email" value={form.parent_email} onChange={handleChangeCb} />
+                  <input name="parent_email" value={form.parent_email} onChange={handleChange} />
                 </td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  <input name="parent_phone" value={form.parent_phone} onChange={handleChangeCb} />
+                  <input name="parent_phone" value={form.parent_phone} onChange={handleChange} />
                 </td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                  <button onClick={handleSaveCb} disabled={loading}>Save</button>
-                  <button onClick={handleCancelCb} style={{ marginLeft: 8 }}>Cancel</button>
+                  <button onClick={handleSave} disabled={loading}>Save</button>
+                  <button onClick={handleCancel} style={{ marginLeft: 8 }}>Cancel</button>
                 </td>
               </tr>
             ) : (
@@ -364,13 +328,13 @@ const AdminStudentInfo = () => {
                 {/* Only show Actions column for superadmin and not warden */}
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
                 <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={handleEditCb(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
-                    <button onClick={handleDeleteCb(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
-                    <button onClick={setBanModalCb(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                    <button onClick={() => handleEdit(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
+                    <button onClick={() => handleDelete(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
+                    <button onClick={() => setBanModal({ open: true, info, from: '', till: '', reason: '' })} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
                     {banStatuses[info.student_email] && (
                       <>
                         <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
-                        <button onClick={handleUnbanCb(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
+                        <button onClick={() => handleUnban(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
                           {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
                         </button>
                       </>
@@ -389,17 +353,17 @@ const AdminStudentInfo = () => {
       <h3 style={{ marginBottom: 18 }}>Ban Student</h3>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontWeight: 500 }}>From:</label><br />
-        <input type="date" value={banModal.from} onChange={e => dispatch({ type: 'SET_BAN_MODAL', payload: { ...banModal, from: e.target.value } })} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
+        <input type="date" value={banModal.from} onChange={e => setBanModal(modal => ({ ...modal, from: e.target.value }))} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontWeight: 500 }}>Till:</label><br />
-        <input type="date" value={banModal.till} onChange={e => dispatch({ type: 'SET_BAN_MODAL', payload: { ...banModal, till: e.target.value } })} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
+        <input type="date" value={banModal.till} onChange={e => setBanModal(modal => ({ ...modal, till: e.target.value }))} style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%' }} />
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontWeight: 500 }}>Reason (Optional):</label><br />
         <textarea 
           value={banModal.reason} 
-          onChange={e => dispatch({ type: 'SET_BAN_MODAL', payload: { ...banModal, reason: e.target.value } })} 
+          onChange={e => setBanModal(modal => ({ ...modal, reason: e.target.value }))} 
           placeholder="Enter reason for ban..."
           style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', width: '100%', minHeight: 60, resize: 'vertical' }}
         />
@@ -414,7 +378,7 @@ const AdminStudentInfo = () => {
         </button>
         <button 
           style={{ background: '#888', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }} 
-          onClick={() => dispatch({ type: 'SET_BAN_MODAL', payload: { ...banModal, open: false, from: '', till: '', reason: '' } })}
+          onClick={() => setBanModal({ open: false, info: null, from: '', till: '', reason: '' })}
           disabled={loading}
         >
           Cancel

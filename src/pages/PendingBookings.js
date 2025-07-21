@@ -284,13 +284,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setBanStatuses(statuses);
   }, []);
 
-  // Memoize all handlers
-  const handleStatusChangeCb = useCallback((status) => () => handleStatusChange(status), [handleStatusChange]);
-  const processBookingActionCb = useCallback((id, action) => () => processBookingAction(id, action), [processBookingAction]);
-  const handleInTimeChangeCb = useCallback((id) => (e) => handleInTimeChange(id, e.target.value), [handleInTimeChange]);
-  const handleSaveInTimeCb = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
-  const sendStillOutAlertCb = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
-
   if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
@@ -303,25 +296,25 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       <div className="status-tabs">
         <button
           className={selectedStatus === 'waiting' ? 'active' : ''}
-          onClick={handleStatusChangeCb('waiting')}
+          onClick={() => handleStatusChange('waiting')}
         >
           Waiting ({tabCounts.waiting})
         </button>
         <button
           className={selectedStatus === 'still_out' ? 'active' : ''}
-          onClick={handleStatusChangeCb('still_out')}
+          onClick={() => handleStatusChange('still_out')}
         >
           Still Out ({tabCounts.still_out || 0})
         </button>
         <button
           className={selectedStatus === 'confirmed' ? 'active' : ''}
-          onClick={handleStatusChangeCb('confirmed')}
+          onClick={() => handleStatusChange('confirmed')}
         >
           Confirmed ({tabCounts.confirmed})
         </button>
         <button
           className={selectedStatus === 'rejected' ? 'active' : ''}
-          onClick={handleStatusChangeCb('rejected')}
+          onClick={() => handleStatusChange('rejected')}
         >
           Rejected ({tabCounts.rejected})
         </button>
@@ -367,12 +360,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                         id={`inTime-${booking.id}`}
                         type="time"
                         value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                        onChange={handleInTimeChangeCb(booking.id)}
+                        onChange={e => handleInTimeChange(booking.id, e.target.value)}
                         disabled={savingInTimeId === booking.id}
                         style={{ width: '120px' }}
                       />
                       <button
-                        onClick={handleSaveInTimeCb(booking.id)}
+                        onClick={() => handleSaveInTime(booking.id)}
                         disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
                         style={{ padding: '4px 10px', fontSize: '0.95em' }}
                       >
@@ -392,14 +385,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               {selectedStatus === 'waiting' && (
                 <div className="action-buttons">
                   <button
-                    onClick={processBookingActionCb(booking.id, 'confirm')}
+                    onClick={() => processBookingAction(booking.id, 'confirm')}
                     className="confirm-button"
                     disabled={loading}
                   >
                     Confirm
                   </button>
                   <button
-                    onClick={processBookingActionCb(booking.id, 'reject')}
+                    onClick={() => processBookingAction(booking.id, 'reject')}
                     className="reject-button"
                     disabled={loading}
                   >
@@ -409,8 +402,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               )}
               {selectedStatus === 'still_out' && (
                 <div className="still-out-actions">
-                  <button onClick={processBookingActionCb(booking.id, 'confirm')} className="in-btn">In</button>
-                  <button onClick={sendStillOutAlertCb(booking)} className="alert-btn">Alert</button>
+                  <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
+                  <button onClick={() => sendStillOutAlert(booking)} className="alert-btn">Alert</button>
                 </div>
               )}
             </div>
