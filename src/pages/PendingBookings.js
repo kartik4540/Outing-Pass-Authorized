@@ -27,6 +27,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
+  console.log('wardenHostels:', wardenHostels);
+
   useEffect(() => {
     if (wardenLoggedIn) {
       fetchAllBookings(wardenEmail);
