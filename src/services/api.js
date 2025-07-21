@@ -41,17 +41,16 @@ export const fetchBookedSlots = async (email) => {
 };
 
 /**
- * Delete a booked slot
- * @param {number} slotId - The slot ID to delete
+ * Delete a booking by its ID
+ * @param {number} bookingId - The booking ID to delete
  * @returns {Promise<Object>} - Deletion confirmation
  */
-export const deleteBookedSlot = async (slotId) => {
+export const deleteBooking = async (bookingId) => {
   try {
     const { error } = await supabase
       .from('outing_requests')
       .delete()
-      .eq('id', slotId)
-      .select();
+      .eq('id', bookingId);
     
     if (error) throw error;
     
@@ -644,4 +643,23 @@ export const addBookingRequest = async (bookingData) => {
     } catch (error) {
         throw handleError(error);
     }
+};
+
+/**
+ * Fetch the latest day order (for slot booking)
+ * @returns {Promise<Object>} - Latest day order row
+ */
+export const fetchDayOrder = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('day_orders')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch day order');
+  }
 };
