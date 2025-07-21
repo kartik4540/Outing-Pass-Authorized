@@ -165,36 +165,39 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
 
-  // Filter bookings by date range and hostel for wardens
-  const filteredBookings = useMemo(() => bookings.filter(booking => {
-    // Warden: filter by assigned hostels (case-insensitive, trimmed)
+  // Bookings filtered by hostel/warden/admin, but NOT by date
+  const hostelFilteredBookings = useMemo(() => bookings.filter(booking => {
     if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
       const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
       if (!normalizedHostels.includes('all')) {
         const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
         if (!normalizedHostels.includes(bookingHostel)) return false;
       }
-      // If 'all' is present, do not filter by hostel
     }
-    // Admin: filter by adminHostels if provided
     if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
       const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
       const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
       if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
     }
+    return true;
+  }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
+
+  // Tab counts: status counts from hostelFilteredBookings (not date filtered)
+  const tabCounts = useMemo(() => ({
+    waiting: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
+    still_out: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
+    confirmed: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
+    rejected: hostelFilteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
+  }), [hostelFilteredBookings]);
+
+  // Bookings filtered by hostel/warden/admin AND date
+  const filteredBookings = useMemo(() => hostelFilteredBookings.filter(booking => {
     if (!startDate && !endDate) return true;
     const outDate = booking.out_date;
     if (startDate && outDate < startDate) return false;
     if (endDate && outDate > endDate) return false;
     return true;
-  }), [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels, startDate, endDate]);
-
-  const filteredCounts = useMemo(() => ({
-    waiting: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'waiting').length,
-    still_out: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'still_out').length,
-    confirmed: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'confirmed').length,
-    rejected: filteredBookings.filter(b => (b.status || '').toLowerCase() === 'rejected').length,
-  }), [filteredBookings]);
+  }), [hostelFilteredBookings, startDate, endDate]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
@@ -258,25 +261,25 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           className={selectedStatus === 'waiting' ? 'active' : ''}
           onClick={() => handleStatusChange('waiting')}
         >
-          Waiting ({filteredCounts.waiting})
+          Waiting ({tabCounts.waiting})
         </button>
         <button
           className={selectedStatus === 'still_out' ? 'active' : ''}
           onClick={() => handleStatusChange('still_out')}
         >
-          Still Out ({filteredCounts.still_out || 0})
+          Still Out ({tabCounts.still_out || 0})
         </button>
         <button
           className={selectedStatus === 'confirmed' ? 'active' : ''}
           onClick={() => handleStatusChange('confirmed')}
         >
-          Confirmed ({filteredCounts.confirmed})
+          Confirmed ({tabCounts.confirmed})
         </button>
         <button
           className={selectedStatus === 'rejected' ? 'active' : ''}
           onClick={() => handleStatusChange('rejected')}
         >
-          Rejected ({filteredCounts.rejected})
+          Rejected ({tabCounts.rejected})
         </button>
       </div>
       
