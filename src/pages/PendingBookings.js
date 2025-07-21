@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
+import { fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
@@ -11,16 +11,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [selectedStatus, setSelectedStatus] = useState('waiting');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [counts, setCounts] = useState({ waiting: 0, still_out: 0, confirmed: 0, rejected: 0 });
-  const [editInTime, setEditInTime] = useState({});
-  const [savingInTimeId, setSavingInTimeId] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [user, setUser] = useState(null);
   const [toast, setToast] = useState({ message: '', type: 'info' });
-  const navigate = useNavigate();
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
+  const navigate = useNavigate();
 
   // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -41,7 +37,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   }, []);
 
   // Helper to fetch and set all bookings
-  const fetchAndSetAllBookings = async (adminEmail) => {
+  const fetchAndSetAllBookings = useCallback(async (adminEmail) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
@@ -53,12 +49,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const checkAdminAndFetchBookings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
       if (!user) {
         navigate('/login');
         return;
@@ -95,65 +90,40 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   }, []);
 
   // After a real change, re-fetch all bookings
-  const processBookingAction = useCallback(async (bookingId, action) => {
-    try {
-      setLoading(true);
-      let emailToUse = wardenLoggedIn ? wardenEmail : null;
-      if (!wardenLoggedIn) {
-        const { data: { user } } = await supabase.auth.getUser();
-        emailToUse = user?.email;
-      }
-      let newStatus = action;
-      if (selectedStatus === 'waiting' && action === 'confirm') {
-        newStatus = 'still_out';
-      }
-      if (selectedStatus === 'still_out' && action === 'confirm') {
-        newStatus = 'confirmed';
-      }
-      const result = await handleBookingAction(bookingId, newStatus, emailToUse);
-      // After any action, re-fetch all bookings
-      await fetchAndSetAllBookings(emailToUse);
-      setSelectedStatus(newStatus === 'still_out' || newStatus === 'confirmed' ? newStatus : selectedStatus);
-      setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
-      if (result.emailResult) {
-        if (result.emailResult.sent) {
-          setToast({ message: 'Email sent to parent successfully.', type: 'info' });
-        } else {
-          setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
+  useEffect(() => {
+    const processBookingAction = async (bookingId, action) => {
+      try {
+        setLoading(true);
+        let emailToUse = wardenLoggedIn ? wardenEmail : null;
+        if (!wardenLoggedIn) {
+          const { data: { user } } = await supabase.auth.getUser();
+          emailToUse = user?.email;
         }
+        let newStatus = action;
+        if (selectedStatus === 'waiting' && action === 'confirm') {
+          newStatus = 'still_out';
+        }
+        if (selectedStatus === 'still_out' && action === 'confirm') {
+          newStatus = 'confirmed';
+        }
+        const result = await updateBookingInTime(bookingId, newStatus);
+        // After any action, re-fetch all bookings
+        await fetchAndSetAllBookings(emailToUse);
+        setSelectedStatus(newStatus === 'still_out' || newStatus === 'confirmed' ? newStatus : selectedStatus);
+        if (result.emailResult) {
+          if (result.emailResult.sent) {
+            setToast({ message: 'Email sent to parent successfully.', type: 'info' });
+          } else {
+            setToast({ message: 'Booking status updated, but failed to send email to parent.' + (result.emailResult.error ? ` Error: ${result.emailResult.error}` : ''), type: 'error' });
+          }
+        }
+      } catch (error) {
+        setError('Failed to process booking action.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      setError('Failed to process booking action.');
-    } finally {
-      setLoading(false);
-    }
-  }, [wardenLoggedIn, wardenEmail, selectedStatus]);
-
-  const handleInTimeChange = useCallback((bookingId, value) => {
-    setEditInTime((prev) => ({ ...prev, [bookingId]: value }));
-  }, []);
-
-  const handleSaveInTime = useCallback(async (bookingId) => {
-    setSavingInTimeId(bookingId);
-    try {
-      const newInTime = editInTime[bookingId];
-      await updateBookingInTime(bookingId, newInTime);
-      if (wardenLoggedIn) {
-        await fetchAndSetAllBookings(wardenEmail);
-      } else {
-        const { data: { user } } = await supabase.auth.getUser();
-        await fetchAndSetAllBookings(user.email);
-      }
-      setSuccess('In Time updated successfully.');
-    } catch (error) {
-      setError('Failed to update In Time.');
-    } finally {
-      setSavingInTimeId(null);
-    }
-  }, [editInTime, wardenLoggedIn, wardenEmail, fetchAndSetAllBookings]);
-
-  // Manual refresh button handler
-  // Remove the handleManualRefresh function and the Refresh button from the render
+    };
+  }, [wardenLoggedIn, wardenEmail, selectedStatus, fetchAndSetAllBookings]);
 
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
@@ -175,7 +145,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return filtered;
   }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
-  // Ensure tabCounts is only dependent on hostelFilteredBookings
+  // Ensure counts is only dependent on hostelFilteredBookings
   const tabCounts = useMemo(() => {
     const counts = {
       waiting: 0,
@@ -200,39 +170,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (endDate && outDate > endDate) return false;
     return true;
   }), [hostelFilteredBookings, startDate, endDate]);
-
-  const sendStillOutAlert = useCallback(async (booking) => {
-    try {
-      setLoading(true);
-      // Send custom email to parent
-      const functionUrl = 'https://fwnknmqlhlyxdeyfcrad.supabase.co/functions/v1/send-email';
-      const html = `
-        <p>Dear Parent,</p>
-        <p>Your ward <b>${booking.name}</b> (${booking.email}) from <b>${booking.hostel_name}</b> has not returned by the expected time.</p>
-        <p>Please contact the hostel administration for more information.</p>
-        <p><i>This is an automated alert.</i></p>
-      `;
-      const emailRes = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: booking.parent_email,
-          subject: 'Alert: Your ward is still out',
-          html
-        })
-      });
-      const emailData = await emailRes.json();
-      if (emailRes.ok && !emailData.error) {
-        setToast({ message: 'Alert email sent to parent successfully.', type: 'info' });
-      } else {
-        setToast({ message: 'Failed to send alert email to parent.' + (emailData.error ? ` Error: ${emailData.error}` : ''), type: 'error' });
-      }
-    } catch (err) {
-      setToast({ message: 'Failed to send alert email: ' + (err.message || err), type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   // After fetching bookings, fetch all bans in one call and map by email
   useEffect(() => {
@@ -316,59 +253,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
                   <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {selectedStatus === 'waiting' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
-                      <input
-                        id={`inTime-${booking.id}`}
-                        type="time"
-                        value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                        onChange={e => handleInTimeChange(booking.id, e.target.value)}
-                        disabled={savingInTimeId === booking.id}
-                        style={{ width: '120px' }}
-                      />
-                      <button
-                        onClick={() => handleSaveInTime(booking.id)}
-                        disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
-                        style={{ padding: '4px 10px', fontSize: '0.95em' }}
-                      >
-                        {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  ) : (
-                  <p><strong>In Time:</strong> {booking.in_time}</p>
-                  )}
-                  {booking.handled_by && booking.status !== 'waiting' && (
-                    <p className="handled-time">
-                      <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
-                    </p>
-                  )}
+                  {/* Booking actions and details end here */}
                 </div>
               </div>
-              {selectedStatus === 'waiting' && (
-                <div className="action-buttons">
-                  <button
-                    onClick={() => processBookingAction(booking.id, 'confirm')}
-                    className="confirm-button"
-                    disabled={loading}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => processBookingAction(booking.id, 'reject')}
-                    className="reject-button"
-                    disabled={loading}
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-              {selectedStatus === 'still_out' && (
-                <div className="still-out-actions">
-                  <button onClick={() => processBookingAction(booking.id, 'confirm')} className="in-btn">In</button>
-                  <button onClick={() => sendStillOutAlert(booking)} className="alert-btn">Alert</button>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -379,4 +266,4 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   );
 };
 
-export default PendingBookings; 
+export default PendingBookings;

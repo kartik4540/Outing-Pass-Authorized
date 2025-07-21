@@ -25,16 +25,6 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
     }
   };
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        prompt: 'select_account', // Always prompt for account selection
-        redirectTo: window.location.origin
-      }
-    });
-  };
-
   const handleArchGateLogout = () => {
     sessionStorage.clear();
     navigate('/login');
