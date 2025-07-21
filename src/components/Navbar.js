@@ -13,6 +13,9 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenUsername = wardenLoggedIn ? sessionStorage.getItem('wardenUsername') : null;
 
+  // Debug: Log the user prop
+  console.log('Navbar user prop:', user);
+
   const handleLogout = async () => {
       await supabase.auth.signOut();
     sessionStorage.clear();

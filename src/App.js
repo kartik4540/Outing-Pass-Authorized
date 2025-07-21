@@ -27,6 +27,7 @@ function App() {
     setSessionLoading(true);
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
+        console.log('Session on reload:', session);
       if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
             setToast({ message: 'Please use your SRM email to log in.', type: 'error' });
@@ -61,6 +62,7 @@ function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
+        console.log('Auth state changed:', session);
         setSessionLoading(true);
       if (session?.user) {
           if (!session.user.email.endsWith('@srmist.edu.in')) {
@@ -95,8 +97,10 @@ function App() {
   }, []);
 
   const checkAdminStatus = async (email) => {
+    console.log('Checking admin status for:', email);
     try {
       const adminInfo = await fetchAdminInfoByEmail(email);
+      console.log('Admin info result:', adminInfo);
       if (adminInfo) {
         setIsAdmin(true);
         setAdminRole(adminInfo.role);

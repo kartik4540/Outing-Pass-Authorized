@@ -27,6 +27,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
+  console.log('wardenHostels:', wardenHostels);
+
   useEffect(() => {
     if (wardenLoggedIn) {
       fetchAllBookings(wardenEmail);
@@ -58,6 +60,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      // Debug log: print all bookings fetched
+      console.log('Fetched bookings:', bookingsData.map(b => ({id: b.id, status: b.status, hostel: b.hostel_name, email: b.email})));
       if (!Array.isArray(bookingsData)) {
         setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
         setLoading(false);
@@ -119,8 +123,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       const result = await handleBookingAction(bookingId, newStatus, emailToUse);
       // Only switch tab if confirming, not for rejection
       if (newStatus === 'still_out' || newStatus === 'confirmed') {
-      setSelectedStatus(newStatus);
-      await fetchAllBookings(emailToUse, newStatus);
+        setSelectedStatus(newStatus);
+        await fetchAllBookings(emailToUse, newStatus);
       } else {
         // For rejection, stay on current tab and just refresh
         await fetchAllBookings(emailToUse, selectedStatus);
@@ -166,20 +170,21 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   // Bookings filtered by hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
     const filtered = bookings.filter(booking => {
-    if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
-      const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
+      if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
+        const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
         if (!normalizedHostels.includes('all')) {
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+          const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
           if (!normalizedHostels.includes(bookingHostel)) return false;
         }
-    }
-    if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
-      const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
-    }
+      }
+      if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
+        const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
+        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+        if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+      }
       return true;
     });
+    console.log('hostelFilteredBookings:', filtered);
     return filtered;
   }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
@@ -197,6 +202,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         counts[status]++;
       }
     });
+    console.log('tabCounts:', counts);
     return counts;
   }, [hostelFilteredBookings]);
 

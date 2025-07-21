@@ -10,12 +10,15 @@ const ProtectedRoute = ({ children }) => {
     const checkUser = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('Session check:', { session, error })
         
         if (error) {
+          console.error('Session error:', error)
           throw error
         }
         
         if (!session) {
+          console.log('No session found, redirecting to auth')
           navigate('/auth')
           return
         }
@@ -23,12 +26,15 @@ const ProtectedRoute = ({ children }) => {
         // If we have a session, verify it's still valid
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
+          console.log('No user found, redirecting to auth')
           navigate('/auth')
           return
         }
 
+        console.log('Valid session found:', user)
         setLoading(false)
       } catch (error) {
+        console.error('Error checking auth status:', error)
         navigate('/auth')
       }
     }
@@ -38,6 +44,7 @@ const ProtectedRoute = ({ children }) => {
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session)
       if (event === 'SIGNED_OUT') {
         navigate('/auth')
       } else if (event === 'SIGNED_IN' && session) {
