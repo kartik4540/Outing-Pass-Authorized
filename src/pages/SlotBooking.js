@@ -494,6 +494,11 @@ const SlotBooking = () => {
                     {loading ? 'Deleting...' : 'Delete'}
             </button>
                 )}
+                {currentBooking && currentBooking.status === 'rejected' && currentBooking.rejection_reason && (
+                  <div style={{ color: '#c62828', fontWeight: 600, margin: '12px 0' }}>
+                    <b>Rejection Reason:</b> {currentBooking.rejection_reason}
+                  </div>
+                )}
           </div>
             ) : (
               // Placeholder to align OTP container
@@ -530,6 +535,11 @@ const SlotBooking = () => {
                   <div><b>In Time:</b> {booking.in_time}</div>
                   <div><b>Reason:</b> {booking.reason}</div>
                   <div><b>Status:</b> {booking.status}</div>
+                  {booking.status === 'rejected' && booking.rejection_reason && (
+                    <div style={{ color: '#c62828', fontWeight: 600, marginTop: 8 }}>
+                      <b>Rejection Reason:</b> {booking.rejection_reason}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

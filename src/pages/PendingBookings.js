@@ -4,6 +4,7 @@ import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBook
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
+import Modal from '../components/Modal';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
   const [bookings, setBookings] = useState([]);
@@ -20,6 +21,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
+  const [rejectionModal, setRejectionModal] = useState({ open: false, bookingId: null });
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -117,7 +120,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
-  const processBookingAction = useCallback(async (bookingId, action) => {
+  const processBookingAction = useCallback(async (bookingId, action, reason) => {
     try {
       setLoading(true);
       let emailToUse = wardenLoggedIn ? wardenEmail : null;
@@ -132,7 +135,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       if (selectedStatus === 'still_out' && action === 'confirm') {
         newStatus = 'confirmed';
       }
-      const result = await handleBookingAction(bookingId, newStatus, emailToUse);
+      // Pass reason to API if rejecting
+      const result = await handleBookingAction(bookingId, newStatus, emailToUse, reason);
       // Only switch tab if confirming, not for rejection
       if (newStatus === 'still_out' || newStatus === 'confirmed') {
       setSelectedStatus(newStatus);
@@ -270,7 +274,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
 
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
-  const handleProcessBookingReject = useCallback((id) => () => processBookingAction(id, 'reject'), [processBookingAction]);
+  const handleProcessBookingReject = useCallback((id) => () => {
+    setRejectionModal({ open: true, bookingId: id });
+  }, []);
+  const handleRejectionSubmit = async () => {
+    await processBookingAction(rejectionModal.bookingId, 'reject', rejectionReason);
+    setRejectionModal({ open: false, bookingId: null });
+    setRejectionReason('');
+  };
   const handleSaveInTimeFactory = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
   const handleSendStillOutAlertFactory = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
 
@@ -414,6 +425,19 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       ) : (
         <div className="no-bookings">No {selectedStatus} requests available</div>
+      )}
+      {rejectionModal.open && (
+        <Modal onClose={() => setRejectionModal({ open: false, bookingId: null })}>
+          <h3>Reject Booking</h3>
+          <textarea
+            value={rejectionReason}
+            onChange={e => setRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            style={{ width: '100%', minHeight: 60, marginBottom: 16 }}
+          />
+          <button onClick={handleRejectionSubmit} style={{ background: '#dc3545', color: 'white', marginRight: 8 }}>Reject</button>
+          <button onClick={() => setRejectionModal({ open: false, bookingId: null })}>Cancel</button>
+        </Modal>
       )}
     </div>
   );

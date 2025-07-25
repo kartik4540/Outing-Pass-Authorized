@@ -146,7 +146,7 @@ function generateOTP() {
  * @param {string} adminEmail - The admin's email
  * @returns {Promise<Object>} - Action confirmation
  */
-export const handleBookingAction = async (bookingId, action, adminEmail) => {
+export const handleBookingAction = async (bookingId, action, adminEmail, rejectionReason) => {
   try {
     // action is now the new status: 'still_out', 'confirmed', 'rejected'
     let newStatus = action;
@@ -186,6 +186,9 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
     if (newStatus === 'confirmed') {
       // If moving from still_out to confirmed, mark OTP as used
       updateObj.otp_used = true;
+    }
+    if (newStatus === 'rejected') {
+      updateObj.rejection_reason = rejectionReason || null;
     }
     const { data, error } = await supabase
       .from('outing_requests')
