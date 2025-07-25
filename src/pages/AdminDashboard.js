@@ -22,7 +22,6 @@ const AdminDashboard = () => {
           await fetchAllBookings(user.email);
         }
       } catch (error) {
-        console.error('Error initializing admin:', error);
         setError('Failed to initialize admin dashboard');
       }
     };
@@ -37,7 +36,6 @@ const AdminDashboard = () => {
       setBookings(data);
       setError('');
     } catch (error) {
-      console.error('Error fetching bookings:', error);
       setError('Failed to fetch bookings. Please try again later.');
     } finally {
       setLoading(false);
@@ -82,7 +80,6 @@ const AdminDashboard = () => {
       setSelectedStatus(newStatus);
       
     } catch (error) {
-      console.error('Error updating booking status:', error);
       setError('Failed to update booking status. Please try again.');
     } finally {
       setActionLoading(false);

@@ -9,7 +9,6 @@ import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturne
  * @returns {Error} - Formatted error
  */
 const handleError = (error) => {
-  console.error('API error:', error);
   return new Error(error.message || 'An error occurred with the Supabase request');
 };
 
@@ -120,12 +119,10 @@ export const fetchPendingBookings = async (adminEmail) => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Supabase error fetching outing requests:', error);
       throw new Error(`Failed to fetch outing requests: ${error.message}`);
     }
     
     if (!data) {
-      console.error('No data returned from outing requests query');
       throw new Error('No outing request data available');
     }
     
@@ -196,7 +193,6 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
       .eq('id', bookingId)
       .select();
     if (error) {
-      console.error('Supabase update error:', error);
       throw new Error(`Supabase error: ${error.message || error}`);
     }
 
@@ -244,7 +240,6 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
       emailResult
     };
   } catch (error) {
-    console.error('handleBookingAction error:', error);
     throw handleError(error);
   }
 };
@@ -418,14 +413,14 @@ export const checkApiHealth = async () => {
       const { error } = await supabase.from('health_check').select('count').limit(1);
       if (!error) return true;
     } catch (e) {
-      console.log('Health check table not found, trying alternate method');
+      // console.log('Health check table not found, trying alternate method');
     }
     
     // If that fails, try a simple auth ping which should always work
     const { error } = await supabase.auth.getSession();
     return !error;
   } catch (error) {
-    console.error('Supabase connection error:', error);
+    // console.error('Supabase connection error:', error);
     return false;
   }
 };

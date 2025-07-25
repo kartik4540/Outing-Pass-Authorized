@@ -27,7 +27,7 @@ const Header = () => {
       await supabase.auth.signOut();
       navigate('/auth');
     } catch (error) {
-      console.error('Error logging out:', error);
+      // console.error('Error logging out:', error);
     }
   };
 
