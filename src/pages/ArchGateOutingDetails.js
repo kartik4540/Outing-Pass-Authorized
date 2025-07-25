@@ -19,6 +19,7 @@ export default function ArchGateOutingDetails() {
             <p><strong>Out Time:</strong> {details.out_time}</p>
             <p><strong>In Date:</strong> {details.in_date}</p>
             <p><strong>In Time:</strong> {details.in_time}</p>
+            <p><strong>Reason:</strong> {details.reason}</p>
             <p><strong>Status:</strong> {details.status}</p>
             <p><strong>OTP:</strong> {details.otp}</p>
           </div>

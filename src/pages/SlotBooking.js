@@ -24,7 +24,8 @@ const initialState = {
     inDate: '',
     inTime: '',
     parentEmail: '',
-    parentPhone: ''
+    parentPhone: '',
+    reason: '',
   },
   loading: false,
   bookedSlots: [],
@@ -194,6 +195,7 @@ const SlotBooking = () => {
         inTime: bookingForm.inTime,
         parentEmail: bookingForm.parentEmail,
         parentPhone: bookingForm.parentPhone,
+        reason: bookingForm.reason,
         status: 'waiting'
       };
       const response = await bookSlot(bookingData);
@@ -370,6 +372,19 @@ const SlotBooking = () => {
             disabled={(!isAdmin && !studentInfoExists) || loading || apiError}
           />
         </div>
+        <div className="form-group">
+          <label htmlFor="reason">Reason for Outing:</label>
+          <input
+            type="text"
+            id="reason"
+            name="reason"
+            value={bookingForm.reason}
+            onChange={handleBookingChange}
+            required
+            placeholder="Enter reason for outing"
+            disabled={(!isAdmin && !studentInfoExists) || loading || apiError}
+          />
+        </div>
 
         <label htmlFor="parentEmail">Parent Email:</label>
         <input
@@ -467,6 +482,7 @@ const SlotBooking = () => {
                 <div><b>Out Time:</b> {currentBooking.out_time}</div>
                 <div><b>In Date:</b> {currentBooking.in_date}</div>
                 <div><b>In Time:</b> {currentBooking.in_time}</div>
+                <div><b>Reason:</b> {currentBooking.reason}</div>
                 <div><b>Status:</b> {currentBooking.status}</div>
                 {currentBooking.status === 'waiting' && (
                   <button onClick={handleDeleteBookingFactory(currentBooking.id)} disabled={loading} style={{ marginTop: 16, background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '8px 20px', fontWeight: 500, cursor: 'pointer' }}>
@@ -507,6 +523,7 @@ const SlotBooking = () => {
                   <div><b>Out Time:</b> {booking.out_time}</div>
                   <div><b>In Date:</b> {booking.in_date}</div>
                   <div><b>In Time:</b> {booking.in_time}</div>
+                  <div><b>Reason:</b> {booking.reason}</div>
                   <div><b>Status:</b> {booking.status}</div>
                 </div>
               ))}

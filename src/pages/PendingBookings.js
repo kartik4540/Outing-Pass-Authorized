@@ -365,6 +365,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   ) : (
                   <p><strong>In Time:</strong> {booking.in_time}</p>
                   )}
+                  <p><strong>Reason:</strong> {booking.reason}</p>
                   {booking.handled_by && booking.status !== 'waiting' && (
                     <p className="handled-time">
                       <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}

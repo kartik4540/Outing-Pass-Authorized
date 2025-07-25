@@ -173,6 +173,7 @@ const AdminDashboard = () => {
                 <p><strong>Out Time:</strong> {booking.out_time}</p>
                 <p><strong>In Date:</strong> {booking.in_date}</p>
                 <p><strong>In Time:</strong> {booking.in_time}</p>
+                <p><strong>Reason:</strong> {booking.reason}</p>
               </div>
               {booking.status === 'waiting' && (
                 <div className="booking-actions">
