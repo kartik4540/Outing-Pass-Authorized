@@ -365,7 +365,19 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   ) : (
                   <p><strong>In Time:</strong> {booking.in_time}</p>
                   )}
-                  <p><strong>Reason:</strong> {booking.reason ? booking.reason : 'No reason provided'}</p>
+                  {/* Number of days calculation */}
+                  <p><strong>Number of Days:</strong> {(() => {
+                    const outDate = new Date(booking.out_date);
+                    const inDate = new Date(booking.in_date);
+                    if (!isNaN(outDate) && !isNaN(inDate)) {
+                      // Add 1 to include both out and in date
+                      const diff = Math.round((inDate - outDate) / (1000 * 60 * 60 * 24)) + 1;
+                      return diff > 0 ? diff : 1;
+                    }
+                    return 'N/A';
+                  })()}</p>
+                  {/* Reason with improved styling */}
+                  <p><strong>Reason:</strong> <span style={{ fontWeight: 600, color: '#333' }}>{booking.reason ? booking.reason : 'No reason provided'}</span></p>
                   {booking.handled_by && booking.status !== 'waiting' && (
                     <p className="handled-time">
                       <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
