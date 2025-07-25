@@ -4,6 +4,7 @@ import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBook
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
+import Modal from 'react-modal';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
   const [bookings, setBookings] = useState([]);
@@ -20,6 +21,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [toast, setToast] = useState({ message: '', type: 'info' });
   const navigate = useNavigate();
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
+  const [rejectModal, setRejectModal] = useState({ open: false, bookingId: null, reason: '' });
 
   // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -117,7 +119,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
-  const processBookingAction = useCallback(async (bookingId, action) => {
+  const processBookingAction = useCallback(async (bookingId, action, rejectionReason = null) => {
     try {
       setLoading(true);
       let emailToUse = wardenLoggedIn ? wardenEmail : null;
@@ -132,11 +134,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       if (selectedStatus === 'still_out' && action === 'confirm') {
         newStatus = 'confirmed';
       }
-      const result = await handleBookingAction(bookingId, newStatus, emailToUse);
+      const result = await handleBookingAction(bookingId, newStatus, emailToUse, rejectionReason);
       // Only switch tab if confirming, not for rejection
       if (newStatus === 'still_out' || newStatus === 'confirmed') {
-      setSelectedStatus(newStatus);
-      await fetchAllBookings(emailToUse, newStatus);
+        setSelectedStatus(newStatus);
+        await fetchAllBookings(emailToUse, newStatus);
       } else {
         // For rejection, stay on current tab and just refresh
         await fetchAllBookings(emailToUse, selectedStatus);
@@ -274,6 +276,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const handleSaveInTimeFactory = useCallback((id) => () => handleSaveInTime(id), [handleSaveInTime]);
   const handleSendStillOutAlertFactory = useCallback((booking) => () => sendStillOutAlert(booking), [sendStillOutAlert]);
 
+  const openRejectModal = (bookingId) => setRejectModal({ open: true, bookingId, reason: '' });
+  const closeRejectModal = () => setRejectModal({ open: false, bookingId: null, reason: '' });
+  const handleRejectReasonChange = (e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }));
+  const handleRejectSubmit = async () => {
+    await processBookingAction(rejectModal.bookingId, 'reject', rejectModal.reason);
+    closeRejectModal();
+  };
+
   if (loading) return <div className="loading">Loading...<br/>{error && <span style={{color:'red'}}>{error}</span>}</div>;
 
   return (
@@ -383,6 +393,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                       <strong>Handled on:</strong> {booking.handled_at ? new Date(booking.handled_at).toLocaleString() : ''}
                     </p>
                   )}
+                  {booking.status === 'rejected' && booking.rejection_reason && (
+                    <p style={{ color: '#b71c1c', fontWeight: 600 }}><strong>Rejection Reason:</strong> {booking.rejection_reason}</p>
+                  )}
                 </div>
               </div>
               {selectedStatus === 'waiting' && (
@@ -395,7 +408,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                     Confirm
                   </button>
                   <button
-                    onClick={handleProcessBookingReject(booking.id)}
+                    onClick={() => openRejectModal(booking.id)}
                     className="reject-button"
                     disabled={loading}
                   >
@@ -415,6 +428,25 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       ) : (
         <div className="no-bookings">No {selectedStatus} requests available</div>
       )}
+      <Modal
+        isOpen={rejectModal.open}
+        onRequestClose={closeRejectModal}
+        contentLabel="Rejection Reason"
+        ariaHideApp={false}
+        style={{ content: { maxWidth: 400, margin: 'auto', padding: 24, borderRadius: 10 } }}
+      >
+        <h3>Reason for Rejection</h3>
+        <textarea
+          value={rejectModal.reason}
+          onChange={handleRejectReasonChange}
+          placeholder="Enter reason for rejecting this request..."
+          style={{ width: '100%', minHeight: 80, marginBottom: 16, borderRadius: 6, border: '1px solid #ccc', padding: 8 }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <button onClick={handleRejectSubmit} className="reject-button" disabled={!rejectModal.reason.trim() || loading}>Reject</button>
+          <button onClick={closeRejectModal} className="cancel-button">Cancel</button>
+        </div>
+      </Modal>
     </div>
   );
 };

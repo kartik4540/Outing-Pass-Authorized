@@ -144,9 +144,10 @@ function generateOTP() {
  * @param {number} bookingId - The booking ID to update
  * @param {string} action - The action to perform ('confirm' or 'reject')
  * @param {string} adminEmail - The admin's email
+ * @param {string} rejectionReason - The reason for rejection (optional, only for 'reject')
  * @returns {Promise<Object>} - Action confirmation
  */
-export const handleBookingAction = async (bookingId, action, adminEmail) => {
+export const handleBookingAction = async (bookingId, action, adminEmail, rejectionReason = null) => {
   try {
     // action is now the new status: 'still_out', 'confirmed', 'rejected'
     let newStatus = action;
@@ -181,6 +182,11 @@ export const handleBookingAction = async (bookingId, action, adminEmail) => {
       handled_by: adminEmail,
       handled_at: new Date().toISOString(),
     };
+    if (newStatus === 'rejected' && rejectionReason) {
+      updateObj.rejection_reason = rejectionReason;
+    } else if (newStatus !== 'rejected') {
+      updateObj.rejection_reason = null;
+    }
     if (otp) updateObj.otp = otp;
     if (resetOtpUsed) updateObj.otp_used = false;
     if (newStatus === 'confirmed') {
