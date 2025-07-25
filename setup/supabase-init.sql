@@ -75,11 +75,22 @@ INSERT INTO health_check (status)
 VALUES ('ok')
 ON CONFLICT DO NOTHING;
 
+-- System Users Table (for custom logins)
+CREATE TABLE IF NOT EXISTS system_users (
+  id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  email TEXT UNIQUE,
+  role TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable RLS (Row Level Security)
 ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_info ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outing_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_check ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_users ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies (examples, adjust as needed)
 -- 1. Admins can view all admins
@@ -90,7 +101,11 @@ CREATE POLICY view_admins ON admins
 -- 2. Wardens and superadmins can view all outing requests
 CREATE POLICY view_outing_requests ON outing_requests
     FOR SELECT
-    USING (true);
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ));
 
 -- 3. Students can view their own outing requests
 CREATE POLICY student_view_own_requests ON outing_requests
@@ -102,20 +117,66 @@ CREATE POLICY student_create_requests ON outing_requests
     FOR INSERT
     WITH CHECK (email = auth.email());
 
--- 5. Wardens/superadmins can update status, handled_by, etc.
+-- 5. Admins/wardens can update all outing requests
 CREATE POLICY admin_update_requests ON outing_requests
     FOR UPDATE
-    USING (true);
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ));
 
--- 6. Anyone can view student_info (or restrict to admins/wardens)
-CREATE POLICY view_student_info ON student_info
+-- 6. Admins/wardens can delete outing requests (optional)
+CREATE POLICY admin_delete_requests ON outing_requests
+    FOR DELETE
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ));
+
+-- 7. Students can delete their own outing requests (optional)
+CREATE POLICY student_delete_own_requests ON outing_requests
+    FOR DELETE
+    USING (email = auth.email());
+
+-- 8. Admins/wardens can view all student info
+CREATE POLICY admin_view_student_info ON student_info
+    FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ));
+
+-- 9. Admins/wardens can modify all student info
+CREATE POLICY admin_modify_student_info ON student_info
+    FOR ALL
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ));
+
+-- 10. Students can view their own info
+CREATE POLICY student_view_own_info ON student_info
+    FOR SELECT
+    USING (student_email = auth.email());
+
+-- 11. Students can update their own info (optional)
+CREATE POLICY student_update_own_info ON student_info
+    FOR UPDATE
+    USING (student_email = auth.email());
+
+-- 12. System users: allow login by username
+CREATE POLICY allow_login_by_username ON system_users
     FOR SELECT
     USING (true);
 
--- 7. Only admins/wardens can modify student_info
-CREATE POLICY modify_student_info ON student_info
-    FOR ALL
-    USING (true);
+-- 13. Only admins can manage system_users (optional, adjust as needed)
+-- CREATE POLICY admin_manage_system_users ON system_users
+--     FOR ALL
+--     USING (auth.role() = 'authenticated' AND auth.email() = 'your-admin-email@example.com');
 
 -- 8. Enable RLS for ban_students table
 ALTER TABLE ban_students ENABLE ROW LEVEL SECURITY;
