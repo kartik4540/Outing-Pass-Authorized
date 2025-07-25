@@ -133,7 +133,7 @@ const SlotBooking = () => {
           }
         }
       } catch (error) {
-        console.error('Error initializing user:', error);
+        // console.error('Error initializing user:', error);
       }
     };
     

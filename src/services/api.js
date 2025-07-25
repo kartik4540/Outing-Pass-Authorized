@@ -379,7 +379,6 @@ export const authenticateWarden = async (username, password) => {
       .eq('username', username)
       // .eq('role', 'warden') // Temporarily removed for debugging
       .maybeSingle();
-    console.log('Supabase warden query:', { data, error, username, password }); // Debug log
     if (error && error.code !== 'PGRST116') throw error;
     if (!data) return null;
     if (data.password !== password) return null;
