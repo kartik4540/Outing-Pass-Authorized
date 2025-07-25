@@ -270,6 +270,11 @@ const SlotBooking = () => {
       {banInfo && (
         <div style={{ color: 'red', fontWeight: 600, marginBottom: 24, fontSize: 18 }}>
           You are banned from making outing requests until {banInfo.till_date}.
+          {banInfo.reason && (
+            <div style={{ marginTop: 8, fontWeight: 500, fontSize: 16 }}>
+              <span style={{ color: '#b71c1c' }}>Reason: {banInfo.reason}</span>
+            </div>
+          )}
         </div>
       )}
       
