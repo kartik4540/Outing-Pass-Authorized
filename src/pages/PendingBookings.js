@@ -339,6 +339,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                     )}
                   </p>
                   <p><strong>Hostel Name:</strong> {booking.hostel_name}</p>
+                  <p><strong>Room Number:</strong> {booking.room_number || 'N/A'}</p>
                   <p><strong>Parent Phone:</strong> {booking.parent_phone || 'N/A'}</p>
                 </div>
                 <div className="info-group">
