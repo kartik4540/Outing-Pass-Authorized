@@ -1,12 +1,11 @@
 -- Admins table (for superadmin, warden, etc.)
 CREATE TABLE IF NOT EXISTS admins (
-  id SERIAL PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT UNIQUE,
   username TEXT UNIQUE,
   password TEXT,
   role TEXT NOT NULL, -- 'superadmin', 'warden', etc.
-  hostels TEXT[],     -- array of hostel names for warden
-  name TEXT,
+  hostels TEXT[] NOT NULL,     -- array of hostel names for warden
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -16,9 +15,11 @@ CREATE TABLE IF NOT EXISTS student_info (
   student_email text UNIQUE NOT NULL,
   hostel_name text NOT NULL,
   parent_email text NOT NULL,
-  parent_phone text, -- NEW: parent's phone number
+  parent_phone text NOT NULL, -- parent's phone number
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  created_by text,
+  updated_by text
 );
 
 -- Ban Students Table
@@ -50,7 +51,10 @@ CREATE TABLE IF NOT EXISTS outing_requests (
   in_date DATE NOT NULL,
   in_time TEXT NOT NULL,
   parent_email TEXT NOT NULL,
+  parent_phone TEXT,
   status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'confirmed', 'rejected'
+  reason TEXT,
+  rejection_reason TEXT,
   otp TEXT UNIQUE,
   handled_by TEXT,
   handled_at TIMESTAMP WITH TIME ZONE,
@@ -77,11 +81,12 @@ ON CONFLICT DO NOTHING;
 
 -- System Users Table (for custom logins)
 CREATE TABLE IF NOT EXISTS system_users (
-  id SERIAL PRIMARY KEY,
+  id BIGSERIAL PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   email TEXT UNIQUE,
-  role TEXT,
+  role TEXT NOT NULL,
+  hostels TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -140,7 +145,45 @@ CREATE POLICY student_delete_own_requests ON outing_requests
     FOR DELETE
     USING (email = auth.email());
 
--- 8. Admins/wardens can view all student info
+-- 8. System users can view outing requests with "waiting" status
+-- 8. System users can view all outing requests
+CREATE POLICY system_user_view_all_requests ON outing_requests
+    FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
+
+-- 9. System users can update outing requests with "waiting" status
+-- 9. System users can update all outing requests
+CREATE POLICY system_user_update_all_requests ON outing_requests
+    FOR UPDATE
+    USING (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
+
+-- 10. System users can insert new outing requests
+CREATE POLICY system_user_insert_requests ON outing_requests
+    FOR INSERT
+    WITH CHECK (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
+
+-- 11. System users can delete outing requests
+CREATE POLICY system_user_delete_requests ON outing_requests
+    FOR DELETE
+    USING (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
+
+-- 12. Admins/wardens can view all student info
 CREATE POLICY admin_view_student_info ON student_info
     FOR SELECT
     USING (EXISTS (
@@ -149,7 +192,7 @@ CREATE POLICY admin_view_student_info ON student_info
         AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
     ));
 
--- 9. Admins/wardens can modify all student info
+-- 13. Admins/wardens can modify all student info
 CREATE POLICY admin_modify_student_info ON student_info
     FOR ALL
     USING (EXISTS (
@@ -158,42 +201,60 @@ CREATE POLICY admin_modify_student_info ON student_info
         AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
     ));
 
--- 10. Students can view their own info
+-- 14. Students can view their own info
 CREATE POLICY student_view_own_info ON student_info
     FOR SELECT
     USING (student_email = auth.email());
 
--- 11. Students can update their own info (optional)
+-- 15. Students can update their own info (optional)
 CREATE POLICY student_update_own_info ON student_info
     FOR UPDATE
     USING (student_email = auth.email());
 
--- 12. System users: allow login by username
+-- 16. System users: allow login by username
 CREATE POLICY allow_login_by_username ON system_users
     FOR SELECT
     USING (true);
 
--- 13. Only admins can manage system_users (optional, adjust as needed)
+-- 17. Only admins can manage system_users (optional, adjust as needed)
 -- CREATE POLICY admin_manage_system_users ON system_users
 --     FOR ALL
 --     USING (auth.role() = 'authenticated' AND auth.email() = 'your-admin-email@example.com');
 
--- 8. Enable RLS for ban_students table
+-- 18. Enable RLS for ban_students table
 ALTER TABLE ban_students ENABLE ROW LEVEL SECURITY;
 
--- 9. Admins can view all bans
+-- 19. Admins can view all bans
 CREATE POLICY view_ban_students ON ban_students
     FOR SELECT
     USING (true);
 
--- 10. Only admins can create/update/delete bans
+-- 20. Only admins can create/update/delete bans
 CREATE POLICY modify_ban_students ON ban_students
     FOR ALL
     USING (true);
 
--- 11. Students can view their own ban status
+-- 21. Students can view their own ban status
 CREATE POLICY student_view_own_ban ON ban_students
     FOR SELECT
     USING (student_email = auth.email());
+
+-- 22. System users can view all ban records
+CREATE POLICY system_user_view_ban_students ON ban_students
+    FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
+
+-- 23. System users can view student info
+CREATE POLICY system_user_view_student_info ON student_info
+    FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
 
 COMMIT;

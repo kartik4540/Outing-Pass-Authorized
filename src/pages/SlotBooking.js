@@ -19,6 +19,7 @@ const initialState = {
     name: '',
     email: '',
     department: '',
+    roomNumber: '',
     outDate: '',
     outTime: '',
     inDate: '',
@@ -178,7 +179,7 @@ const SlotBooking = () => {
       return;
     }
     try {
-      if (!bookingForm.name || !bookingForm.email || !bookingForm.department || !bookingForm.outDate || !bookingForm.outTime || !bookingForm.inDate || !bookingForm.inTime || !bookingForm.parentEmail) {
+      if (!bookingForm.name || !bookingForm.email || !bookingForm.department || !bookingForm.roomNumber || !bookingForm.outDate || !bookingForm.outTime || !bookingForm.inDate || !bookingForm.inTime || !bookingForm.parentEmail) {
         throw new Error('Please fill all required fields.');
       }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -189,6 +190,7 @@ const SlotBooking = () => {
         name: bookingForm.name,
         email: bookingForm.email,
         hostelName: bookingForm.department,
+        roomNumber: bookingForm.roomNumber,
         outDate: bookingForm.outDate,
         outTime: bookingForm.outTime,
         inDate: bookingForm.inDate,
@@ -332,6 +334,18 @@ const SlotBooking = () => {
             className="readonly-input"
           />
 
+        <label htmlFor="roomNumber">Room Number:</label>
+          <input
+            type="text"
+            id="roomNumber"
+            name="roomNumber"
+            value={bookingForm.roomNumber}
+            onChange={handleBookingChange}
+            required
+            placeholder="Enter your room number"
+            disabled={(!isAdmin && !studentInfoExists) || loading || apiError}
+          />
+
         <div className="form-group">
           <label htmlFor="outDate">Out Date:</label>
           <input
@@ -427,6 +441,7 @@ const SlotBooking = () => {
               !bookingForm.name ||
               !bookingForm.email ||
               !bookingForm.department ||
+              !bookingForm.roomNumber ||
               !bookingForm.outDate ||
               !bookingForm.outTime ||
               !bookingForm.inDate ||
