@@ -20,8 +20,8 @@ const handleError = (error) => {
 export const bookSlot = async (bookingData) => {
   try {
     // Validate required fields
-    if (!bookingData.name || !bookingData.email || !bookingData.hostelName || !bookingData.outDate || !bookingData.outTime || !bookingData.inDate || !bookingData.inTime || !bookingData.reason) {
-      throw new Error('Missing required fields: name, email, hostel, out date/time, in date/time, reason are required.');
+    if (!bookingData.name || !bookingData.email || !bookingData.hostelName || !bookingData.roomNumber || !bookingData.outDate || !bookingData.outTime || !bookingData.inDate || !bookingData.inTime || !bookingData.reason) {
+      throw new Error('Missing required fields: name, email, hostel, room number, out date/time, in date/time, reason are required.');
     }
 
     // Insert the outing request into the database
@@ -32,6 +32,7 @@ export const bookSlot = async (bookingData) => {
           name: bookingData.name,
           email: bookingData.email,
           hostel_name: bookingData.hostelName,
+          room_number: bookingData.roomNumber,
           out_date: bookingData.outDate,
           out_time: bookingData.outTime,
           in_date: bookingData.inDate,

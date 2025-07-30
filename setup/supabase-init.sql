@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS outing_requests (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   hostel_name TEXT NOT NULL,
+  room_number TEXT,
   out_date DATE NOT NULL,
   out_time TEXT NOT NULL,
   in_date DATE NOT NULL,
