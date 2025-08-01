@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useReducer } from 'react';
-import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan } from '../services/api';
+import { addOrUpdateStudentInfo, fetchAllStudentInfo, deleteStudentInfo, banStudent, fetchAdminInfoByEmail, fetchAllBans, deleteBan, downloadStudentInfoTemplate } from '../services/api';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 
@@ -236,6 +236,17 @@ const AdminStudentInfo = () => {
   const handleBanModalFactory = useCallback((info) => () => dispatch({ type: 'OPEN_BAN_MODAL', payload: info }), []);
   const handleUnbanFactory = useCallback((email) => () => handleUnban(email), [handleUnban]);
 
+  // Download template handler
+  const handleDownloadTemplate = useCallback(async () => {
+    try {
+      dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
+      await downloadStudentInfoTemplate();
+      dispatch({ type: 'SET_SUCCESS', payload: 'Template downloaded successfully!' });
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to download template' });
+    }
+  }, []);
+
   // Search handlers
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value;
@@ -337,8 +348,24 @@ const AdminStudentInfo = () => {
       )}
       {adminRole === 'superadmin' && !wardenLoggedIn && (
       <div style={{ marginBottom: 16 }}>
-        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8 }}>
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
+          <button 
+            onClick={handleDownloadTemplate}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: 4, 
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+          >
+            📥 Download Template
+          </button>
+        </div>
+        <span style={{ fontSize: 12, color: '#888' }}>
           Upload Excel/CSV with columns: Student Email, Hostel Name, Parent Email, Parent Phone
         </span>
       </div>

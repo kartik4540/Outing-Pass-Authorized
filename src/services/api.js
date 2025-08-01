@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { getStatusUpdateEmail, getStillOutAlertEmail, getNowOutEmail, getReturnedEmail } from './mailTemplates';
+import * as XLSX from 'xlsx';
 
 // No longer need API_BASE_URL as we're using Supabase directly
 
@@ -372,6 +373,72 @@ export const fetchStudentInfoPaginated = async (page = 0, pageSize = 1000) => {
     };
   } catch (error) {
     throw handleError(error);
+  }
+};
+
+/**
+ * Generate and download Excel template for student info upload
+ * @returns {Promise<void>}
+ */
+export const downloadStudentInfoTemplate = async () => {
+  try {
+    // Create template data with headers and example rows
+    const templateData = [
+      {
+        'Student Email': 'student1@example.com',
+        'Hostel Name': 'Hostel A',
+        'Parent Email': 'parent1@example.com',
+        'Parent Phone': '+91-9876543210'
+      },
+      {
+        'Student Email': 'student2@example.com',
+        'Hostel Name': 'Hostel B',
+        'Parent Email': 'parent2@example.com',
+        'Parent Phone': '+91-9876543211'
+      },
+      {
+        'Student Email': 'student3@example.com',
+        'Hostel Name': 'Hostel C',
+        'Parent Email': 'parent3@example.com',
+        'Parent Phone': '+91-9876543212'
+      }
+    ];
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 25 }, // Student Email
+      { wch: 15 }, // Hostel Name
+      { wch: 25 }, // Parent Email
+      { wch: 20 }  // Parent Phone
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Student Info Template');
+
+    // Generate the Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    
+    // Create blob and download
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'student_info_template.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    throw new Error(`Failed to generate template: ${error.message}`);
   }
 };
 
