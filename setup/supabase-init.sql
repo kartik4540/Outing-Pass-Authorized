@@ -51,8 +51,6 @@ CREATE TABLE IF NOT EXISTS outing_requests (
   out_time TEXT NOT NULL,
   in_date DATE NOT NULL,
   in_time TEXT NOT NULL,
-  actual_in_date DATE, -- NEW: Actual return date when student returns early
-  actual_in_time TEXT, -- NEW: Actual return time when student returns early
   parent_email TEXT NOT NULL,
   parent_phone TEXT,
   status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'confirmed', 'rejected'

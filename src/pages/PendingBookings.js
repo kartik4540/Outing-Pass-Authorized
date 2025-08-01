@@ -346,36 +346,28 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <h3>Booking Details</h3>
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
-                  {selectedStatus === 'confirmed' ? (
-                    <>
-                      <p><strong>Actual Return Date:</strong> {booking.actual_in_date || booking.in_date}</p>
-                    </>
+                  <p><strong>In Date:</strong> {booking.in_date}</p>
+                  {selectedStatus === 'waiting' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
+                      <input
+                        id={`inTime-${booking.id}`}
+                        type="time"
+                        value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
+                        onChange={handleInTimeChangeFactory(booking.id)}
+                        disabled={savingInTimeId === booking.id}
+                        style={{ width: '120px' }}
+                      />
+                      <button
+                        onClick={handleSaveInTimeFactory(booking.id)}
+                        disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
+                        style={{ padding: '4px 10px', fontSize: '0.95em' }}
+                      >
+                        {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
                   ) : (
-                    <>
-                      <p><strong>In Date:</strong> {booking.in_date}</p>
-                      {selectedStatus === 'waiting' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
-                          <input
-                            id={`inTime-${booking.id}`}
-                            type="time"
-                            value={editInTime[booking.id] !== undefined ? editInTime[booking.id] : booking.in_time || ''}
-                            onChange={handleInTimeChangeFactory(booking.id)}
-                            disabled={savingInTimeId === booking.id}
-                            style={{ width: '120px' }}
-                          />
-                          <button
-                            onClick={handleSaveInTimeFactory(booking.id)}
-                            disabled={savingInTimeId === booking.id || !editInTime[booking.id] || editInTime[booking.id] === booking.in_time}
-                            style={{ padding: '4px 10px', fontSize: '0.95em' }}
-                          >
-                            {savingInTimeId === booking.id ? 'Saving...' : 'Save'}
-                          </button>
-                        </div>
-                      ) : (
-                        <p><strong>In Time:</strong> {booking.in_time}</p>
-                      )}
-                    </>
+                  <p><strong>In Time:</strong> {booking.in_time}</p>
                   )}
                   {/* Number of days calculation */}
                   <p><strong>Number of Days:</strong> {(() => {
