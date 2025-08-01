@@ -300,6 +300,22 @@
   opacity: 0.9;
 }
 
+/* Pulse animation for late banner */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.4);
+  }
+}
+
 @media (max-width: 600px) {
   .status-tabs {
     flex-direction: column;

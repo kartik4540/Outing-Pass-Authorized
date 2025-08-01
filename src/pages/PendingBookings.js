@@ -28,7 +28,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [searchActive, setSearchActive] = useState(false);
 
   // Warden session support
-  const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
+  const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
   const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
@@ -308,6 +308,34 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setSearchActive(false);
   }, []);
 
+  // Function to check if student is late
+  const isStudentLate = useCallback((booking) => {
+    if (booking.status !== 'still_out') return false;
+    
+    const now = new Date();
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    return now > expectedReturn;
+  }, []);
+
+  // Function to calculate how late the student is
+  const getLateDuration = useCallback((booking) => {
+    if (!isStudentLate(booking)) return null;
+    
+    const now = new Date();
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    const diffMs = now - expectedReturn;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m late`;
+    } else {
+      return `${minutes}m late`;
+    }
+  }, [isStudentLate]);
+
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
   const handleProcessBookingReject = useCallback((id) => () => {
@@ -401,11 +429,69 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       )}
       
+      {/* Late students counter */}
+      {(() => {
+        const lateCount = filteredBookings.filter(booking => isStudentLate(booking)).length;
+        if (lateCount > 0) {
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, #dc3545, #c82333)',
+              color: 'white',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontWeight: 'bold',
+              boxShadow: '0 3px 8px rgba(220, 53, 69, 0.3)'
+            }}>
+              ⚠️ <strong>{lateCount}</strong> student{lateCount > 1 ? 's are' : ' is'} currently late
+            </div>
+          );
+        }
+        return null;
+      })()}
+      
       {filteredBookings.length > 0 ? (
         <div className="bookings-list">
           {filteredBookings.map(booking => (
             <div key={booking.id} className="booking-card">
-              <div className={`status-badge ${booking.status}`}>{booking.status.toUpperCase()}</div>
+              <div className={`status-badge ${booking.status}`}>
+                {booking.status.toUpperCase()}
+                {isStudentLate(booking) && (
+                  <span style={{ 
+                    marginLeft: '8px', 
+                    background: '#dc3545', 
+                    color: 'white', 
+                    padding: '2px 6px', 
+                    borderRadius: '8px', 
+                    fontSize: '10px',
+                    fontWeight: 'bold'
+                  }}>
+                    LATE
+                  </span>
+                )}
+              </div>
+              {isStudentLate(booking) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
+                  color: 'white',
+                  padding: '6px 14px',
+                  borderRadius: '16px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  zIndex: 10,
+                  boxShadow: '0 3px 8px rgba(220, 53, 69, 0.4)',
+                  border: '2px solid #fff',
+                  animation: 'pulse 2s infinite'
+                }}>
+                  ⏰ {getLateDuration(booking)}
+                </div>
+              )}
               <div className="booking-info">
                 <div className="info-group">
                   <h3>User Details</h3>
