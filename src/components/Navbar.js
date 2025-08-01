@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { supabase } from '../supabaseClient';
@@ -12,6 +12,31 @@ const Navbar = ({ user, isAdmin, adminLoading }) => {
   const isArchGate = sessionStorage.getItem('archGateLoggedIn') === 'true';
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenUsername = wardenLoggedIn ? sessionStorage.getItem('wardenUsername') : null;
+
+  // Auto-close navbar on scroll (mobile only)
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Only auto-close on mobile devices (screen width <= 768px)
+      if (window.innerWidth <= 768 && isMenuOpen) {
+        // Close menu if scrolling down
+        if (currentScrollY > lastScrollY) {
+          setIsMenuOpen(false);
+        }
+      }
+      
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
       await supabase.auth.signOut();

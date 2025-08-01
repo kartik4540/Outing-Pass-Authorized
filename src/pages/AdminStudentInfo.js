@@ -299,7 +299,12 @@ const AdminStudentInfo = () => {
   }, [studentInfo, searchQuery, searchActive, wardenLoggedIn, wardenHostels]);
 
   return (
-    <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
+    <div className="admin-student-info-page" style={{ 
+      maxWidth: '100%', 
+      marginLeft: 0, 
+      padding: 24,
+      overflowX: 'hidden' // Prevent horizontal overflow
+    }}>
       <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
       
       <div style={{ marginBottom: 16 }}>
@@ -348,7 +353,13 @@ const AdminStudentInfo = () => {
       )}
       {adminRole === 'superadmin' && !wardenLoggedIn && (
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: 16, 
+          alignItems: 'center', 
+          marginBottom: 8,
+          flexWrap: 'wrap' // Allow wrapping on mobile
+        }}>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
           <button 
             onClick={handleDownloadTemplate}
@@ -359,7 +370,8 @@ const AdminStudentInfo = () => {
               border: 'none', 
               borderRadius: 4, 
               cursor: 'pointer',
-              fontWeight: 500
+              fontWeight: 500,
+              whiteSpace: 'nowrap' // Prevent button text wrapping
             }}
           >
             📥 Download Template
@@ -370,17 +382,29 @@ const AdminStudentInfo = () => {
         </span>
       </div>
       )}
-      <div style={{ width: '100%', overflowX: 'auto', marginBottom: 24, textAlign: 'left' }}>
-        <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div style={{ 
+        width: '100%', 
+        marginBottom: 24, 
+        textAlign: 'left',
+        overflowX: 'auto', // Allow horizontal scroll only if needed
+        WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+      }}>
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse', 
+          textAlign: 'left',
+          tableLayout: 'fixed',
+          minWidth: window.innerWidth <= 768 ? '100%' : 'auto' // Responsive width
+        }}>
         <thead>
           <tr>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Student Email</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Hostel Name</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Email</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Parent Phone</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Last Edited By</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '20%', wordWrap: 'break-word' }}>Student Email</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Hostel Name</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '20%', wordWrap: 'break-word' }}>Parent Email</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Parent Phone</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Last Edited By</th>
               {adminRole === 'superadmin' && !wardenLoggedIn && (
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+            <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Actions</th>
               )}
           </tr>
         </thead>
@@ -429,20 +453,20 @@ const AdminStudentInfo = () => {
               </tr>
             ) : (
               <tr key={info.id}>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.student_email}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.hostel_name}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_email}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.parent_phone || 'N/A'}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{info.updated_by || info.created_by || ''}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.student_email}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.hostel_name}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.parent_email}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.parent_phone || 'N/A'}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.updated_by || info.created_by || ''}</td>
                 {adminRole === 'superadmin' && !wardenLoggedIn && (
-                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s' }}>Edit</button>
-                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Delete</button>
-                    <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }}>Ban</button>
+                <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', fontSize: '12px' }}>Edit</button>
+                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Delete</button>
+                    <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Ban</button>
                     {banStatuses[info.student_email] && (
                       <>
-                        <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '4px 10px', fontWeight: 600, marginLeft: 4 }}>BANNED</span>
-                        <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s' }} disabled={unbanLoading[info.student_email]}>
+                        <span style={{ background: '#dc3545', color: 'white', borderRadius: 4, padding: '2px 6px', fontWeight: 600, marginLeft: 4, fontSize: '10px' }}>BANNED</span>
+                        <button onClick={handleUnbanFactory(info.student_email)} style={{ background: '#388e3c', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }} disabled={unbanLoading[info.student_email]}>
                           {unbanLoading[info.student_email] ? 'Unbanning...' : 'Unban'}
                         </button>
                       </>
