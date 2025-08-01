@@ -133,6 +133,44 @@ export const fetchPendingBookings = async (adminEmail) => {
   }
 };
 
+/**
+ * Fetch pending bookings with pagination (for large datasets)
+ * @param {string} adminEmail - The admin's email
+ * @param {number} page - Page number (0-based)
+ * @param {number} pageSize - Number of records per page
+ * @returns {Promise<Object>} - Object with data and pagination info
+ */
+export const fetchPendingBookingsPaginated = async (adminEmail, page = 0, pageSize = 500) => {
+  try {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    
+    const { data, error, count } = await supabase
+      .from('outing_requests')
+      .select('*', { count: 'exact' })
+      .order('out_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    
+    if (error) {
+      throw new Error(`Failed to fetch outing requests: ${error.message}`);
+    }
+    
+    return {
+      data: data || [],
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        hasMore: (from + pageSize) < (count || 0)
+      }
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -295,10 +333,66 @@ export const fetchAllStudentInfo = async () => {
     const { data, error } = await supabase
       .from('student_info')
       .select('*')
-      .order('student_email', { ascending: true })
-      .range(0, 9999); // fetch up to 10,000 rows
+      .order('student_email', { ascending: true });
     if (error) throw error;
     return data;
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Fetch student info with pagination (for large datasets)
+ * @param {number} page - Page number (0-based)
+ * @param {number} pageSize - Number of records per page
+ * @returns {Promise<Object>} - Object with data and pagination info
+ */
+export const fetchStudentInfoPaginated = async (page = 0, pageSize = 1000) => {
+  try {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    
+    const { data, error, count } = await supabase
+      .from('student_info')
+      .select('*', { count: 'exact' })
+      .order('student_email', { ascending: true })
+      .range(from, to);
+    
+    if (error) throw error;
+    
+    return {
+      data: data || [],
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        hasMore: (from + pageSize) < (count || 0)
+      }
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Get data counts for monitoring (admin only)
+ * @returns {Promise<Object>} - Object with counts of different data types
+ */
+export const getDataCounts = async () => {
+  try {
+    const [studentCount, bookingCount, banCount] = await Promise.all([
+      supabase.from('student_info').select('*', { count: 'exact', head: true }),
+      supabase.from('outing_requests').select('*', { count: 'exact', head: true }),
+      supabase.from('ban_students').select('*', { count: 'exact', head: true }).eq('is_active', true)
+    ]);
+
+    return {
+      students: studentCount.count || 0,
+      bookings: bookingCount.count || 0,
+      activeBans: banCount.count || 0,
+      timestamp: new Date().toISOString()
+    };
   } catch (error) {
     throw handleError(error);
   }
