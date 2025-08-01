@@ -11,6 +11,8 @@ const initialState = {
   error: '',
   success: '',
   search: '',
+  searchQuery: '',
+  searchActive: false,
   adminEmail: '',
   adminRole: '',
   uploadMessage: '',
@@ -54,7 +56,7 @@ function reducer(state, action) {
 const AdminStudentInfo = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
-    studentInfo, editing, form, loading, error, success, search, adminEmail,
+    studentInfo, editing, form, loading, error, success, search, searchQuery, searchActive, adminEmail,
     adminRole, uploadMessage, uploadError, banModal, banStatuses, unbanLoading
   } = state;
 
@@ -234,31 +236,93 @@ const AdminStudentInfo = () => {
   const handleBanModalFactory = useCallback((info) => () => dispatch({ type: 'OPEN_BAN_MODAL', payload: info }), []);
   const handleUnbanFactory = useCallback((email) => () => handleUnban(email), [handleUnban]);
 
+  // Search handlers
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    dispatch({ type: 'SET_FIELD', field: 'searchQuery', value });
+    // Auto-activate search if 4+ characters
+    if (value.length >= 4) {
+      dispatch({ type: 'SET_FIELD', field: 'searchActive', value: true });
+    } else if (value.length === 0) {
+      dispatch({ type: 'SET_FIELD', field: 'searchActive', value: false });
+    }
+  }, []);
+
+  const handleSearchKeyPress = useCallback((e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      dispatch({ type: 'SET_FIELD', field: 'searchActive', value: true });
+    }
+  }, [searchQuery]);
+
+  const handleSearchClick = useCallback(() => {
+    if (searchQuery.trim()) {
+      dispatch({ type: 'SET_FIELD', field: 'searchActive', value: true });
+    }
+  }, [searchQuery]);
+
+  const handleClearSearch = useCallback(() => {
+    dispatch({ type: 'SET_FIELD', field: 'searchQuery', value: '' });
+    dispatch({ type: 'SET_FIELD', field: 'searchActive', value: false });
+  }, []);
+
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
 
-  const filteredInfo = useMemo(() => studentInfo.filter(info => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      info.student_email.toLowerCase().includes(q) ||
-      info.hostel_name.toLowerCase().includes(q) ||
-      (info.parent_email && info.parent_email.toLowerCase().includes(q));
-    if (wardenLoggedIn && wardenHostels.length > 0) {
-      return matchesSearch && wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
+  const filteredInfo = useMemo(() => {
+    let filtered = studentInfo.filter(info => {
+      if (wardenLoggedIn && wardenHostels.length > 0) {
+        return wardenHostels.map(h => h.trim().toLowerCase()).includes((info.hostel_name || '').trim().toLowerCase());
+      }
+      return true;
+    });
+
+    // Apply search filter if search is active - only search through student email
+    if (searchActive && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(info => 
+        info.student_email && info.student_email.toLowerCase().includes(query)
+      );
     }
-    return matchesSearch;
-  }), [studentInfo, search, wardenLoggedIn, wardenHostels]);
+
+    return filtered;
+  }, [studentInfo, searchQuery, searchActive, wardenLoggedIn, wardenHostels]);
 
   return (
     <div className="admin-student-info-page" style={{ maxWidth: '100%', marginLeft: 0, padding: 24 }}>
       <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
-      <input
-        type="text"
-        placeholder="Search by email, hostel, or parent email..."
-        value={search}
-        onChange={e => dispatch({ type: 'SET_FIELD', field: 'search', value: e.target.value })}
-        style={{ marginBottom: 16, width: '100%', padding: 8, fontSize: 16 }}
-      />
+      
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Search by student email..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          onKeyPress={handleSearchKeyPress}
+          style={{ marginBottom: 16, width: '100%', padding: 8, fontSize: 16 }}
+        />
+        <button 
+          onClick={handleSearchClick}
+          disabled={!searchQuery.trim()}
+          style={{ marginRight: 8, padding: '8px 16px' }}
+        >
+          Search
+        </button>
+        {searchActive && (
+          <button 
+            onClick={handleClearSearch}
+            style={{ padding: '8px 16px' }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      
+      {searchActive && (
+        <div style={{ marginBottom: 16, padding: 8, backgroundColor: '#f0f0f0', borderRadius: 4 }}>
+          <span>Searching for email: "{searchQuery}" ({filteredInfo.length} results)</span>
+        </div>
+      )}
+      
       {success && <div style={{ color: 'green', marginBottom: 8 }}>{success}</div>}
       {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
       {uploadMessage && <div style={{ color: 'green', marginBottom: 8 }}>{uploadMessage}</div>}
