@@ -184,6 +184,10 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
     if (newStatus === 'confirmed') {
       // If moving from still_out to confirmed, mark OTP as used
       updateObj.otp_used = true;
+      // Store the actual return date and time when admin confirms student has returned
+      const now = new Date();
+      updateObj.actual_in_date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+      updateObj.actual_in_time = now.toTimeString().split(' ')[0]; // HH:MM:SS format
     }
     if (newStatus === 'rejected') {
       updateObj.rejection_reason = rejectionReason || null;
