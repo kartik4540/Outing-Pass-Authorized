@@ -234,10 +234,19 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       filtered = filtered.filter(booking => 
         booking.email && booking.email.toLowerCase().includes(query)
       );
+      // When searching, include both waiting and still_out statuses
+      filtered = filtered.filter(booking => 
+        booking.status === 'waiting' || booking.status === 'still_out'
+      );
+    } else {
+      // When not searching, filter by selected status
+      filtered = filtered.filter(booking => 
+        (booking.status || '').toLowerCase() === selectedStatus.toLowerCase()
+      );
     }
 
     return filtered;
-  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive]);
+  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive, selectedStatus]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
@@ -424,7 +433,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
                   <p><strong>In Date:</strong> {booking.in_date}</p>
-                  {selectedStatus === 'waiting' ? (
+                  {selectedStatus === 'waiting' || (searchActive && booking.status === 'waiting') ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
                       <input
@@ -466,7 +475,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   )}
                 </div>
               </div>
-              {selectedStatus === 'waiting' && (
+              {(selectedStatus === 'waiting' || (searchActive && booking.status === 'waiting')) && (
                 <div className="action-buttons">
                   <button
                     onClick={handleProcessBookingConfirm(booking.id)}
@@ -484,7 +493,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   </button>
                 </div>
               )}
-              {selectedStatus === 'still_out' && (
+              {(selectedStatus === 'still_out' || (searchActive && booking.status === 'still_out')) && (
                 <div className="still-out-actions">
                   <button onClick={handleProcessBookingStillOutConfirmFactory(booking.id)} className="in-btn">In</button>
                   <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
