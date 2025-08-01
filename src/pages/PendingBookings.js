@@ -23,6 +23,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [banStatuses, setBanStatuses] = useState({}); // { student_email: banObject or null }
   const [rejectionModal, setRejectionModal] = useState({ open: false, bookingId: null });
   const [rejectionReason, setRejectionReason] = useState('');
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
 
   // Warden session support
   const wardenLoggedIn = sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -215,14 +218,26 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return counts;
   }, [hostelFilteredBookings]);
 
-  // Bookings filtered by hostel/warden/admin AND date
-  const filteredBookings = useMemo(() => hostelFilteredBookings.filter(booking => {
-    if (!startDate && !endDate) return true;
-    const outDate = booking.out_date;
-    if (startDate && outDate < startDate) return false;
-    if (endDate && outDate > endDate) return false;
-    return true;
-  }), [hostelFilteredBookings, startDate, endDate]);
+  // Bookings filtered by hostel/warden/admin AND date AND search
+  const filteredBookings = useMemo(() => {
+    let filtered = hostelFilteredBookings.filter(booking => {
+      if (!startDate && !endDate) return true;
+      const outDate = booking.out_date;
+      if (startDate && outDate < startDate) return false;
+      if (endDate && outDate > endDate) return false;
+      return true;
+    });
+
+    // Apply search filter if search is active
+    if (searchActive && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(booking => 
+        booking.email && booking.email.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
@@ -263,6 +278,35 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const handleToastClose = useCallback(() => setToast({ message: '', type: 'info' }), []);
   const handleInTimeChangeFactory = useCallback((id) => (e) => handleInTimeChange(id, e.target.value), [handleInTimeChange]);
   const handleProcessBookingStillOutConfirmFactory = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
+
+  // Search handlers
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Auto-activate search if 4+ characters
+    if (value.length >= 4) {
+      setSearchActive(true);
+    } else if (value.length === 0) {
+      setSearchActive(false);
+    }
+  }, []);
+
+  const handleSearchKeyPress = useCallback((e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      setSearchActive(true);
+    }
+  }, [searchQuery]);
+
+  const handleSearchClick = useCallback(() => {
+    if (searchQuery.trim()) {
+      setSearchActive(true);
+    }
+  }, [searchQuery]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchActive(false);
+  }, []);
 
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
@@ -313,7 +357,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </button>
       </div>
       
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label>Start Date: </label>
           <input type="date" value={startDate} onChange={handleStartDateChange} />
@@ -322,7 +366,40 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           <label>End Date: </label>
           <input type="date" value={endDate} onChange={handleEndDateChange} />
         </div>
+        <div className="search-container">
+          <div className="search-input-group">
+            <label>Search by Email:</label>
+            <input 
+              type="text" 
+              className="search-input"
+              placeholder="Enter email to search..." 
+              value={searchQuery} 
+              onChange={handleSearchChange}
+              onKeyPress={handleSearchKeyPress}
+            />
+          </div>
+          <button 
+            className="search-button"
+            onClick={handleSearchClick}
+            disabled={!searchQuery.trim()}
+          >
+            Search
+          </button>
+          {searchActive && (
+            <button 
+              className="clear-button"
+              onClick={handleClearSearch}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
+      {searchActive && (
+        <div className="search-active-indicator">
+          🔍 Searching for: <strong>{searchQuery}</strong> ({filteredBookings.length} results found)
+        </div>
+      )}
       
       {filteredBookings.length > 0 ? (
         <div className="bookings-list">
