@@ -236,22 +236,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       );
     }
 
-    // Sort: late students first, then normal students
-    filtered.sort((a, b) => {
-      const aIsLate = isStudentLate(a);
-      const bIsLate = isStudentLate(b);
-      
-      if (aIsLate && !bIsLate) return -1; // a is late, b is not - a comes first
-      if (!aIsLate && bIsLate) return 1;  // b is late, a is not - b comes first
-      
-      // If both are late or both are not late, sort by creation date (newest first)
-      const aDate = new Date(a.created_at || a.out_date || a.in_date);
-      const bDate = new Date(b.created_at || b.out_date || b.in_date);
-      return bDate - aDate;
-    });
-
     return filtered;
-  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive, isStudentLate]);
+  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
@@ -442,6 +428,30 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           🔍 Searching for: <strong>{searchQuery}</strong> ({filteredBookings.length} results found)
         </div>
       )}
+      
+      {/* Late students counter */}
+      {(() => {
+        const lateCount = filteredBookings.filter(booking => isStudentLate(booking)).length;
+        if (lateCount > 0) {
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, #dc3545, #c82333)',
+              color: 'white',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontWeight: 'bold',
+              boxShadow: '0 3px 8px rgba(220, 53, 69, 0.3)'
+            }}>
+              ⚠️ <strong>{lateCount}</strong> student{lateCount > 1 ? 's are' : ' is'} currently late
+            </div>
+          );
+        }
+        return null;
+      })()}
       
       {filteredBookings.length > 0 ? (
         <div className="bookings-list">
