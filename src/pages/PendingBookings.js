@@ -254,6 +254,34 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return filtered;
   }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive, isStudentLate]);
 
+  // Function to check if student is late
+  const isStudentLate = useCallback((booking) => {
+    if (booking.status !== 'still_out') return false;
+    
+    const now = new Date();
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    return now > expectedReturn;
+  }, []);
+
+  // Function to calculate how late the student is
+  const getLateDuration = useCallback((booking) => {
+    if (!isStudentLate(booking)) return null;
+    
+    const now = new Date();
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    const diffMs = now - expectedReturn;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m late`;
+    } else {
+      return `${minutes}m late`;
+    }
+  }, [isStudentLate]);
+
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
       setLoading(true);
@@ -322,34 +350,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setSearchQuery('');
     setSearchActive(false);
   }, []);
-
-  // Function to check if student is late
-  const isStudentLate = useCallback((booking) => {
-    if (booking.status !== 'still_out') return false;
-    
-    const now = new Date();
-    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
-    
-    return now > expectedReturn;
-  }, []);
-
-  // Function to calculate how late the student is
-  const getLateDuration = useCallback((booking) => {
-    if (!isStudentLate(booking)) return null;
-    
-    const now = new Date();
-    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
-    const diffMs = now - expectedReturn;
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m late`;
-    } else {
-      return `${minutes}m late`;
-    }
-  }, [isStudentLate]);
 
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
