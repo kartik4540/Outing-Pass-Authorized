@@ -16,7 +16,9 @@ export function getStatusUpdateEmail(booking, statusMsg) {
         <li><b>Reason:</b> ${booking.reason}</li>
       </ul>
       <p>
-        If you have any questions, please contact the hostel administration.<br>
+        If you have any questions, please contact the hostel administration. <br>
+        Contact-Number: 8056016627<br>
+        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
         <i>This is an automated message. Please do not reply.</i>
       </p>
     `
@@ -51,6 +53,8 @@ export function getNowOutEmail(booking, wardenEmail) {
       <p>
         <b>Warden:</b> ${wardenEmail || 'Hostel Warden'}<br>
         If you have any questions, please contact the hostel administration.<br>
+        Contact-Number: 8056016627<br>
+        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
         <i>This is an automated message. Please do not reply.</i>
       </p>
     `
@@ -72,6 +76,8 @@ export function getReturnedEmail(booking) {
       </ul>
       <p>
         If you have any questions, please contact the hostel administration.<br>
+        Contact-Number: 8056016627<br>
+        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
         <i>This is an automated message. Please do not reply.</i>
       </p>
     `
