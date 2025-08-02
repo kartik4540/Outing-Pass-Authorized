@@ -236,8 +236,23 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       );
     }
 
+    // Sort bookings: late students first, then by creation date (newest first)
+    filtered.sort((a, b) => {
+      const aIsLate = isStudentLate(a);
+      const bIsLate = isStudentLate(b);
+      
+      // If one is late and the other isn't, late one comes first
+      if (aIsLate && !bIsLate) return -1;
+      if (!aIsLate && bIsLate) return 1;
+      
+      // If both are late or both are not late, sort by creation date (newest first)
+      const aDate = new Date(a.created_at || a.out_date || 0);
+      const bDate = new Date(b.created_at || b.out_date || 0);
+      return bDate - aDate;
+    });
+
     return filtered;
-  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive]);
+  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive, isStudentLate]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
@@ -431,7 +446,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       
       {/* Late students counter */}
       {(() => {
-        const lateCount = filteredBookings.filter(booking => isStudentLate(booking)).length;
+        const lateCount = filteredBookings.filter(booking => 
+          booking.status === selectedStatus && isStudentLate(booking)
+        ).length;
         if (lateCount > 0) {
           return (
             <div style={{
