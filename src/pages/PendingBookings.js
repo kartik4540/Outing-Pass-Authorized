@@ -429,29 +429,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       )}
       
-      {/* Late students counter */}
-      {(() => {
-        const lateCount = filteredBookings.filter(booking => isStudentLate(booking)).length;
-        if (lateCount > 0) {
-          return (
-            <div style={{
-              background: 'linear-gradient(135deg, #dc3545, #c82333)',
-              color: 'white',
-              padding: '12px 20px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontWeight: 'bold',
-              boxShadow: '0 3px 8px rgba(220, 53, 69, 0.3)'
-            }}>
-              ⚠️ <strong>{lateCount}</strong> student{lateCount > 1 ? 's are' : ' is'} currently late
-            </div>
-          );
-        }
-        return null;
-      })()}
+
       
       {filteredBookings.length > 0 ? (
         <div className="bookings-list">
