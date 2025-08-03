@@ -7,7 +7,8 @@ import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]); // Store all bookings (unfiltered)
+  const [bookings, setBookings] = useState([]); // Store filtered bookings for current status
   const [selectedStatus, setSelectedStatus] = useState('waiting');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,7 +45,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setBanStatuses(statuses);
   }, []); // `fetchAllBans` is from API (stable), `setBanStatuses` is a setState dispatch (stable)
 
-  const fetchAllBookings = useCallback(async (adminEmail, status) => {
+  const fetchAllBookings = useCallback(async (adminEmail) => {
     try {
       setLoading(true);
       const bookingsData = await fetchPendingBookings(adminEmail) || [];
@@ -53,16 +54,17 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         setLoading(false);
         return;
       }
-      const statusToUse = status || selectedStatus;
-      const filteredBookings = statusToUse === 'all'
-        ? bookingsData 
-        : bookingsData.filter(booking => (booking.status || '').toLowerCase() === statusToUse.toLowerCase());
-      setBookings(filteredBookings);
+      
+      // Store all bookings
+      setAllBookings(bookingsData);
+      
+      // Calculate counts from all data
       const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
       const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
       const confirmed = bookingsData.filter(booking => booking.status === 'confirmed').length;
       const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
       setCounts({ waiting, still_out, confirmed, rejected });
+      
       setError(null);
       await fetchBans();
     } catch (error) {
@@ -70,7 +72,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, fetchBans]);
+  }, [fetchBans]);
 
   const checkAdminAndFetchBookings = useCallback(async () => {
     try {
@@ -98,24 +100,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [wardenLoggedIn, wardenEmail, checkAdminAndFetchBookings, fetchAllBookings]);
 
-  const handleStatusChange = useCallback(async (status) => {
+  const handleStatusChange = useCallback((status) => {
     setSelectedStatus(status);
-    try {
-      setLoading(true);
-      if (wardenLoggedIn) {
-        await fetchAllBookings(wardenEmail, status);
-      } else {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        await fetchAllBookings(user.email, status);
-      }
-      setError(null);
-    } catch (error) {
-      setError('Failed to filter bookings.');
-    } finally {
-      setLoading(false);
-    }
-  }, [wardenLoggedIn, wardenEmail, fetchAllBookings]);
+    // No API call needed - just change the status filter
+  }, []);
 
   const processBookingAction = useCallback(async (bookingId, action, reason) => {
     try {
@@ -134,13 +122,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       }
       // Pass reason to API if rejecting
       const result = await handleBookingAction(bookingId, newStatus, emailToUse, reason);
+      // Refresh all data after any action
+      await fetchAllBookings(emailToUse);
       // Only switch tab if confirming, not for rejection
       if (newStatus === 'still_out' || newStatus === 'confirmed') {
-      setSelectedStatus(newStatus);
-      await fetchAllBookings(emailToUse, newStatus);
-      } else {
-        // For rejection, stay on current tab and just refresh
-        await fetchAllBookings(emailToUse, selectedStatus);
+        setSelectedStatus(newStatus);
       }
       setSuccess(`Request ${newStatus === 'confirmed' ? 'confirmed' : newStatus === 'still_out' ? 'moved to Still Out' : 'rejected'} successfully.`);
       if (result.emailResult) {
@@ -167,11 +153,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     try {
       const newInTime = editInTime[bookingId];
       await updateBookingInTime(bookingId, newInTime);
+      // Refresh all data after update
       if (wardenLoggedIn) {
-        await fetchAllBookings(wardenEmail, selectedStatus);
+        await fetchAllBookings(wardenEmail);
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        await fetchAllBookings(user.email, selectedStatus);
+        await fetchAllBookings(user.email);
       }
       setSuccess('In Time updated successfully.');
     } catch (error) {
@@ -179,27 +166,33 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     } finally {
       setSavingInTimeId(null);
     }
-  }, [editInTime, wardenLoggedIn, wardenEmail, selectedStatus, fetchAllBookings]);
+  }, [editInTime, wardenLoggedIn, wardenEmail, fetchAllBookings]);
 
-  // Bookings filtered by hostel/warden/admin, but NOT by date
+  // Bookings filtered by status, hostel/warden/admin, but NOT by date
   const hostelFilteredBookings = useMemo(() => {
-    const filtered = bookings.filter(booking => {
-    if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
-      const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
+    // First filter by status
+    const statusFiltered = allBookings.filter(booking => 
+      (booking.status || '').toLowerCase() === selectedStatus.toLowerCase()
+    );
+    
+    // Then filter by hostel permissions
+    const filtered = statusFiltered.filter(booking => {
+      if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
+        const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
         if (!normalizedHostels.includes('all')) {
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+          const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
           if (!normalizedHostels.includes(bookingHostel)) return false;
         }
-    }
-    if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
-      const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
-      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
-      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
-    }
+      }
+      if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
+        const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
+        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+        if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+      }
       return true;
     });
     return filtered;
-  }, [bookings, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
+  }, [allBookings, selectedStatus, wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
 
   // Ensure tabCounts is only dependent on hostelFilteredBookings
   const tabCounts = useMemo(() => {
