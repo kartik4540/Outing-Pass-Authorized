@@ -218,6 +218,49 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return counts;
   }, [hostelFilteredBookings]);
 
+  // Function to check if student is late
+  const isStudentLate = useCallback((booking) => {
+    if (booking.status !== 'still_out') return false;
+    
+    const now = new Date();
+    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    // Check for impossible time combination (out time later than in time on same day)
+    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
+      // This is likely a data entry error - assume in time should be PM if out time is AM
+      // or out time should be PM if in time is AM
+      return false; // Don't mark as late for impossible combinations
+    }
+    
+    return now > expectedReturn;
+  }, []);
+
+  // Function to calculate how late the student is
+  const getLateDuration = useCallback((booking) => {
+    if (!isStudentLate(booking)) return null;
+    
+    const now = new Date();
+    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
+    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    // Check for impossible time combination
+    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
+      return null; // Don't show late duration for impossible combinations
+    }
+    
+    const diffMs = now - expectedReturn;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m late`;
+    } else {
+      return `${minutes}m late`;
+    }
+  }, [isStudentLate]);
+
   // Bookings filtered by hostel/warden/admin AND date AND search
   const filteredBookings = useMemo(() => {
     let filtered = hostelFilteredBookings.filter(booking => {
@@ -317,49 +360,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     setSearchQuery('');
     setSearchActive(false);
   }, []);
-
-  // Function to check if student is late
-  const isStudentLate = useCallback((booking) => {
-    if (booking.status !== 'still_out') return false;
-    
-    const now = new Date();
-    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
-    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
-    
-    // Check for impossible time combination (out time later than in time on same day)
-    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
-      // This is likely a data entry error - assume in time should be PM if out time is AM
-      // or out time should be PM if in time is AM
-      return false; // Don't mark as late for impossible combinations
-    }
-    
-    return now > expectedReturn;
-  }, []);
-
-  // Function to calculate how late the student is
-  const getLateDuration = useCallback((booking) => {
-    if (!isStudentLate(booking)) return null;
-    
-    const now = new Date();
-    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
-    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
-    
-    // Check for impossible time combination
-    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
-      return null; // Don't show late duration for impossible combinations
-    }
-    
-    const diffMs = now - expectedReturn;
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m late`;
-    } else {
-      return `${minutes}m late`;
-    }
-  }, [isStudentLate]);
 
 
 
