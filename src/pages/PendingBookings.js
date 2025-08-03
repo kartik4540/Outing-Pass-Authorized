@@ -469,25 +469,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                 )}
 
               </div>
-              {isStudentLate(booking) && (
-                <div style={{
-                  position: 'absolute',
-                  top: '12px',
-                  right: '12px',
-                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                  color: 'white',
-                  padding: '6px 14px',
-                  borderRadius: '16px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  zIndex: 10,
-                  boxShadow: '0 3px 8px rgba(220, 53, 69, 0.4)',
-                  border: '2px solid #fff',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  ⏰ {getLateDuration(booking)}
-                </div>
-              )}
+
               <div className="booking-info">
                 <div className="info-group">
                   <h3>User Details</h3>
