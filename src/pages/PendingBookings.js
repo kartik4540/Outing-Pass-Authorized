@@ -313,7 +313,15 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (booking.status !== 'still_out') return false;
     
     const now = new Date();
+    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
     const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    // Check for impossible time combination (out time later than in time on same day)
+    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
+      // This is likely a data entry error - assume in time should be PM if out time is AM
+      // or out time should be PM if in time is AM
+      return false; // Don't mark as late for impossible combinations
+    }
     
     return now > expectedReturn;
   }, []);
@@ -323,7 +331,14 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (!isStudentLate(booking)) return null;
     
     const now = new Date();
+    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
     const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
+    
+    // Check for impossible time combination
+    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
+      return null; // Don't show late duration for impossible combinations
+    }
+    
     const diffMs = now - expectedReturn;
     
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -335,6 +350,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       return `${minutes}m late`;
     }
   }, [isStudentLate]);
+
+
 
   // Add handler factories at the top of the component
   const handleProcessBookingConfirm = useCallback((id) => () => processBookingAction(id, 'confirm'), [processBookingAction]);
@@ -450,6 +467,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                     LATE
                   </span>
                 )}
+
               </div>
               {isStudentLate(booking) && (
                 <div style={{
