@@ -93,32 +93,7 @@
   color: #004085;
 }
 
-.status-filter-buttons {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  justify-content: center;
-}
 
-.status-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background-color: #f0f0f0;
-  color: #333;
-}
-
-.status-button:hover {
-  background-color: #e0e0e0;
-}
-
-.status-button.active {
-  background-color: #dc3545;
-  color: white;
-}
 
 .status-tabs {
   display: flex;
@@ -231,21 +206,7 @@
   border-radius: 8px;
 }
 
-.action-note {
-  margin: 10px 0 20px;
-  padding: 10px 15px;
-  background-color: #fff3cd;
-  border-left: 4px solid #ffc107;
-  border-radius: 4px;
-  text-align: center;
-}
 
-.action-note p {
-  margin: 0;
-  color: #856404;
-  font-size: 0.95rem;
-  font-weight: 500;
-}
 
 .admin-handler {
   margin-top: 15px;
@@ -293,12 +254,7 @@
   background-color: #dc3545;
 }
 
-.handler-info {
-  font-size: 0.85rem;
-  margin-left: 8px;
-  font-weight: normal;
-  opacity: 0.9;
-}
+
 
 /* Pulse animation for late banner */
 @keyframes pulse {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchBookedSlots, handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
+import { handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
 import './PendingBookings.css';
 import Toast from '../components/Toast';
@@ -8,7 +8,6 @@ import Modal from '../components/Modal';
 
 const PendingBookings = ({ adminRole, adminHostels }) => {
   const [allBookings, setAllBookings] = useState([]); // Store all bookings (unfiltered)
-  const [bookings, setBookings] = useState([]); // Store filtered bookings for current status
   const [selectedStatus, setSelectedStatus] = useState('waiting');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +31,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
   const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : null;
-  const wardenRole = wardenLoggedIn ? sessionStorage.getItem('wardenRole') : null;
 
   const fetchBans = useCallback(async () => {
     const allBans = await fetchAllBans();

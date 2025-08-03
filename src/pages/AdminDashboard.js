@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [processingBookingId, setProcessingBookingId] = useState(null);
   const [isTabSwitchLocked, setIsTabSwitchLocked] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState({ id: null, time: 0, action: null });
 
   useEffect(() => {
     const initializeAdmin = async () => {
