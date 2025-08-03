@@ -236,8 +236,18 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       );
     }
 
+    // Sort: late students first, then normal bookings
+    filtered.sort((a, b) => {
+      const aIsLate = isStudentLate(a);
+      const bIsLate = isStudentLate(b);
+      
+      if (aIsLate && !bIsLate) return -1; // a comes first
+      if (!aIsLate && bIsLate) return 1;  // b comes first
+      return 0; // both same status, maintain original order
+    });
+
     return filtered;
-  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive]);
+  }, [hostelFilteredBookings, startDate, endDate, searchQuery, searchActive, isStudentLate]);
 
   const sendStillOutAlert = useCallback(async (booking) => {
     try {
