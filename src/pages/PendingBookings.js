@@ -266,7 +266,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (searchActive && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(booking => 
-        booking.email && booking.email.toLowerCase().includes(query)
+        booking.room_number && booking.room_number.toLowerCase().includes(query)
       );
     }
 
@@ -327,8 +327,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    // Auto-activate search if 4+ characters
-    if (value.length >= 4) {
+    // Auto-activate search if 3+ characters
+    if (value.length >= 3) {
       setSearchActive(true);
     } else if (value.length === 0) {
       setSearchActive(false);
@@ -414,11 +414,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
         <div className="search-container">
           <div className="search-input-group">
-            <label>Search by Email:</label>
+            <label>Search by Room Number:</label>
             <input 
               type="text" 
               className="search-input"
-              placeholder="Enter email to search..." 
+              placeholder="Enter room number to search..." 
               value={searchQuery} 
               onChange={handleSearchChange}
               onKeyPress={handleSearchKeyPress}
@@ -443,7 +443,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       </div>
       {searchActive && (
         <div className="search-active-indicator">
-          🔍 Searching for: <strong>{searchQuery}</strong> ({filteredBookings.length} results found)
+          🔍 Searching for room number: <strong>{searchQuery}</strong> ({filteredBookings.length} results found)
         </div>
       )}
       
