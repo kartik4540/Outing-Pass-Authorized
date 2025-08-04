@@ -266,7 +266,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     if (searchActive && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(booking => 
-        booking.email && booking.email.toLowerCase().includes(query)
+        booking.room_number && booking.room_number.toString().toLowerCase().includes(query)
       );
     }
 
