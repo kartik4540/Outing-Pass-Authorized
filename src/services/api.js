@@ -107,18 +107,27 @@ export const deleteBookedSlot = async (slotId) => {
 };
 
 /**
- * Fetch all bookings (admin only)
- * @param {string} adminEmail - The admin's email
- * @returns {Promise<Array>} - Array of all bookings
+ * Fetch all bookings (admin/warden)
+ * Optionally restrict by allowed hostels (for wardens)
+ * @param {string} adminEmail - The admin's email (for audit/compat)
+ * @param {string[]} allowedHostels - Optional list of hostel names the user is allowed to see; if ['all'] or empty/undefined => no restriction
+ * @returns {Promise<Array>} - Array of bookings
  */
-export const fetchPendingBookings = async (adminEmail) => {
+export const fetchPendingBookings = async (adminEmail, allowedHostels) => {
   try {
-    // Fetch all outing requests for admin
-    const { data, error } = await supabase
+    const query = supabase
       .from('outing_requests')
       .select('*')
       .order('out_date', { ascending: false })
       .order('created_at', { ascending: false });
+
+    // Apply server-side hostel restriction when provided and not 'all'
+    if (Array.isArray(allowedHostels) && allowedHostels.length > 0 && !allowedHostels.map(h => h.toLowerCase()).includes('all')) {
+      // Supabase supports in() for filtering
+      query.in('hostel_name', allowedHostels);
+    }
+
+    const { data, error } = await query;
     
     if (error) {
       throw new Error(`Failed to fetch outing requests: ${error.message}`);

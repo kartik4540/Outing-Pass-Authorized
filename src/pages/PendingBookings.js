@@ -52,7 +52,18 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const fetchAllBookings = useCallback(async (adminEmail) => {
     try {
       setLoading(true);
-      const bookingsData = await fetchPendingBookings(adminEmail) || [];
+      // Determine allowed hostels based on role
+      let allowedHostels = [];
+      if (wardenLoggedIn) {
+        allowedHostels = Array.isArray(wardenHostels) ? wardenHostels : [];
+      } else if (adminRole === 'warden') {
+        allowedHostels = Array.isArray(adminHostels) ? adminHostels : [];
+      } else {
+        // Super warden or higher: no restriction
+        allowedHostels = ['all'];
+      }
+
+      const bookingsData = await fetchPendingBookings(adminEmail, allowedHostels) || [];
       if (!Array.isArray(bookingsData)) {
         setError('Supabase returned non-array data: ' + JSON.stringify(bookingsData));
         setLoading(false);
