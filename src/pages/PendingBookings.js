@@ -395,7 +395,9 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         setToast({ message: 'From date cannot be after To date.', type: 'error' });
         return;
       }
+      
       setExportingReport(true);
+      
       // Filter confirmed and rejected within date range and hostel permissions
       const eligible = (allBookings || []).filter(b =>
         (b.status === 'confirmed' || b.status === 'rejected') &&
@@ -410,31 +412,48 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         return;
       }
 
-      const rows = eligible.map(b => ({
-        Name: b.name,
-        Email: b.email,
-        Hostel: b.hostel_name,
-        'Room Number': b.room_number,
-        'Out Date': b.out_date,
-        'Out Time': b.out_time,
-        'In Date': b.in_date,
-        'In Time': b.in_time,
+      // Validate data before export
+      const validRows = eligible.filter(b => b.name && b.email && b.out_date);
+      if (validRows.length !== eligible.length) {
+        console.warn(`Filtered out ${eligible.length - validRows.length} records with missing data`);
+      }
+
+      const rows = validRows.map(b => ({
+        Name: b.name || 'N/A',
+        Email: b.email || 'N/A',
+        Hostel: b.hostel_name || 'N/A',
+        'Room Number': b.room_number || 'N/A',
+        'Out Date': b.out_date || 'N/A',
+        'Out Time': b.out_time || 'N/A',
+        'In Date': b.in_date || 'N/A',
+        'In Time': b.in_time || 'N/A',
         Status: (b.status || '').toUpperCase(),
-        Reason: b.reason || '',
-        'Rejection Reason': b.rejection_reason || '',
-        'Handled By': b.handled_by || '',
-        'Handled At': b.handled_at ? new Date(b.handled_at).toLocaleString() : ''
+        Reason: b.reason || 'N/A',
+        'Rejection Reason': b.rejection_reason || 'N/A',
+        'Handled By': b.handled_by || 'N/A',
+        'Handled At': b.handled_at ? new Date(b.handled_at).toLocaleString() : 'N/A'
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-      const filename = `Outing_Report_${reportStartDate}_to_${reportEndDate}.xlsx`;
+      
+      // Generate filename with timestamp for uniqueness
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `Outing_Report_${reportStartDate}_to_${reportEndDate}_${timestamp}.xlsx`;
+      
       XLSX.writeFile(workbook, filename);
-      setToast({ message: `Report downloaded: ${filename}`, type: 'info' });
+      setToast({ 
+        message: `✅ Report downloaded successfully: ${filename} (${rows.length} records)`, 
+        type: 'info' 
+      });
       setReportModalOpen(false);
     } catch (err) {
-      setToast({ message: 'Failed to generate report: ' + (err.message || err), type: 'error' });
+      console.error('Report generation error:', err);
+      setToast({ 
+        message: '❌ Failed to generate report: ' + (err.message || 'Unknown error occurred'), 
+        type: 'error' 
+      });
     } finally {
       setExportingReport(false);
     }
@@ -506,8 +525,21 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
           <input type="date" value={endDate} onChange={handleEndDateChange} />
         </div>
         <div>
-          <button onClick={openReportModal} style={{ padding: '8px 12px' }}>
-            Generate Report
+          <button 
+            onClick={openReportModal} 
+            style={{ 
+              padding: '8px 16px', 
+              background: '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '14px'
+            }}
+            title="Generate Excel report for confirmed and rejected outings"
+          >
+            📊 Generate Report
           </button>
         </div>
         <div className="search-container">
@@ -661,7 +693,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       )}
       {reportModalOpen && (
         <Modal onClose={closeReportModal}>
-          <h3>Monthly Report</h3>
+          <h3>📊 Monthly Report</h3>
+          <p style={{ color: '#666', marginBottom: '16px' }}>
+            Generate Excel report for confirmed and rejected outing requests
+          </p>
           <div style={{ display: 'flex', gap: 16, margin: '12px 0' }}>
             <div>
               <label>From: </label>
@@ -672,11 +707,58 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               <input type="date" value={reportEndDate} onChange={handleReportEndChange} />
             </div>
           </div>
+          {reportStartDate && reportEndDate && (
+            <div style={{ 
+              background: '#f8f9fa', 
+              padding: '12px', 
+              borderRadius: '4px', 
+              margin: '12px 0',
+              fontSize: '14px'
+            }}>
+              <strong>Report Summary:</strong>
+              <br />
+              • Date Range: {reportStartDate} to {reportEndDate}
+              <br />
+              • Records: {(() => {
+                const eligible = (allBookings || []).filter(b =>
+                  (b.status === 'confirmed' || b.status === 'rejected') &&
+                  hasHostelPermission(b) &&
+                  (!reportStartDate || (b.out_date && b.out_date >= reportStartDate)) &&
+                  (!reportEndDate || (b.out_date && b.out_date <= reportEndDate))
+                );
+                return eligible.length;
+              })()} confirmed/rejected requests
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleGenerateReport} disabled={exportingReport} style={{ background: '#0d6efd', color: 'white' }}>
-              {exportingReport ? 'Generating...' : 'Download Excel'}
+            <button 
+              onClick={handleGenerateReport} 
+              disabled={exportingReport || !reportStartDate || !reportEndDate} 
+              style={{ 
+                background: '#0d6efd', 
+                color: 'white',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              {exportingReport ? '⏳ Generating...' : '📥 Download Excel'}
             </button>
-            <button onClick={closeReportModal}>Cancel</button>
+            <button 
+              onClick={closeReportModal}
+              style={{
+                padding: '8px 16px',
+                background: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </Modal>
       )}
