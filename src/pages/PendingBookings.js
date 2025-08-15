@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { handleBookingAction, fetchPendingBookings, updateBookingInTime, fetchAllBans } from '../services/api';
 import { supabase } from '../supabaseClient';
@@ -26,6 +27,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   // Search functionality
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
+  // Report generation modal state
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [exportingReport, setExportingReport] = useState(false);
 
   // Warden session support
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
@@ -209,6 +215,23 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     return counts;
   }, [hostelFilteredBookings]);
 
+  // Helper to check hostel permissions without status filtering
+  const hasHostelPermission = useCallback((booking) => {
+    if (wardenLoggedIn && Array.isArray(wardenHostels) && wardenHostels.length > 0) {
+      const normalizedHostels = wardenHostels.map(h => h.trim().toLowerCase());
+      if (!normalizedHostels.includes('all')) {
+        const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+        if (!normalizedHostels.includes(bookingHostel)) return false;
+      }
+    }
+    if (!wardenLoggedIn && adminRole === 'warden' && Array.isArray(adminHostels) && adminHostels.length > 0) {
+      const normalizedHostels = adminHostels.map(h => h.trim().toLowerCase());
+      const bookingHostel = (booking.hostel_name || '').trim().toLowerCase();
+      if (!normalizedHostels.includes('all') && !normalizedHostels.includes(bookingHostel)) return false;
+    }
+    return true;
+  }, [wardenLoggedIn, wardenHostels, adminRole, adminHostels]);
+
   // Function to check if student is late
   const isStudentLate = useCallback((booking) => {
     if (booking.status !== 'still_out') return false;
@@ -347,6 +370,76 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, [searchQuery]);
 
+  // Report handlers
+  const openReportModal = useCallback(() => {
+    // Default to current month range
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    setReportStartDate(startOfMonth);
+    setReportEndDate(endOfMonth);
+    setReportModalOpen(true);
+  }, []);
+
+  const closeReportModal = useCallback(() => setReportModalOpen(false), []);
+  const handleReportStartChange = useCallback((e) => setReportStartDate(e.target.value), []);
+  const handleReportEndChange = useCallback((e) => setReportEndDate(e.target.value), []);
+
+  const handleGenerateReport = useCallback(() => {
+    try {
+      if (!reportStartDate || !reportEndDate) {
+        setToast({ message: 'Please select both From and To dates.', type: 'error' });
+        return;
+      }
+      if (reportStartDate > reportEndDate) {
+        setToast({ message: 'From date cannot be after To date.', type: 'error' });
+        return;
+      }
+      setExportingReport(true);
+      // Filter confirmed and rejected within date range and hostel permissions
+      const eligible = (allBookings || []).filter(b =>
+        (b.status === 'confirmed' || b.status === 'rejected') &&
+        hasHostelPermission(b) &&
+        (!reportStartDate || (b.out_date && b.out_date >= reportStartDate)) &&
+        (!reportEndDate || (b.out_date && b.out_date <= reportEndDate))
+      );
+
+      if (eligible.length === 0) {
+        setToast({ message: 'No confirmed or rejected records found for the selected period.', type: 'info' });
+        setExportingReport(false);
+        return;
+      }
+
+      const rows = eligible.map(b => ({
+        Name: b.name,
+        Email: b.email,
+        Hostel: b.hostel_name,
+        'Room Number': b.room_number,
+        'Out Date': b.out_date,
+        'Out Time': b.out_time,
+        'In Date': b.in_date,
+        'In Time': b.in_time,
+        Status: (b.status || '').toUpperCase(),
+        Reason: b.reason || '',
+        'Rejection Reason': b.rejection_reason || '',
+        'Handled By': b.handled_by || '',
+        'Handled At': b.handled_at ? new Date(b.handled_at).toLocaleString() : ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+      const filename = `Outing_Report_${reportStartDate}_to_${reportEndDate}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+      setToast({ message: `Report downloaded: ${filename}`, type: 'info' });
+      setReportModalOpen(false);
+    } catch (err) {
+      setToast({ message: 'Failed to generate report: ' + (err.message || err), type: 'error' });
+    } finally {
+      setExportingReport(false);
+    }
+  }, [reportStartDate, reportEndDate, allBookings, hasHostelPermission]);
+
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
     setSearchActive(false);
@@ -411,6 +504,11 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         <div>
           <label>End Date: </label>
           <input type="date" value={endDate} onChange={handleEndDateChange} />
+        </div>
+        <div>
+          <button onClick={openReportModal} style={{ padding: '8px 12px' }}>
+            Generate Report
+          </button>
         </div>
         <div className="search-container">
           <div className="search-input-group">
@@ -560,6 +658,27 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         </div>
       ) : (
         <div className="no-bookings">No {selectedStatus} requests available</div>
+      )}
+      {reportModalOpen && (
+        <Modal onClose={closeReportModal}>
+          <h3>Monthly Report</h3>
+          <div style={{ display: 'flex', gap: 16, margin: '12px 0' }}>
+            <div>
+              <label>From: </label>
+              <input type="date" value={reportStartDate} onChange={handleReportStartChange} />
+            </div>
+            <div>
+              <label>To: </label>
+              <input type="date" value={reportEndDate} onChange={handleReportEndChange} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handleGenerateReport} disabled={exportingReport} style={{ background: '#0d6efd', color: 'white' }}>
+              {exportingReport ? 'Generating...' : 'Download Excel'}
+            </button>
+            <button onClick={closeReportModal}>Cancel</button>
+          </div>
+        </Modal>
       )}
       {rejectionModal.open && (
         <Modal onClose={() => setRejectionModal({ open: false, bookingId: null })}>
