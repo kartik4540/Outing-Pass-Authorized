@@ -8,7 +8,7 @@ const Modal = ({ children, onClose }) => (
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 2000
+    zIndex: 2100
   }}>
     <div style={{
       background: '#fff',

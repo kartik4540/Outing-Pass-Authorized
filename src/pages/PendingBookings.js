@@ -13,7 +13,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [counts, setCounts] = useState({ waiting: 0, still_out: 0, confirmed: 0, rejected: 0 });
+  // counts state not used in UI; avoid maintaining unused state
   const [editInTime, setEditInTime] = useState({});
   const [savingInTimeId, setSavingInTimeId] = useState(null);
   const [startDate, setStartDate] = useState('');
@@ -72,13 +72,6 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       
       // Store all bookings
       setAllBookings(bookingsData);
-      
-      // Calculate counts from all data
-      const waiting = bookingsData.filter(booking => booking.status === 'waiting').length;
-      const still_out = bookingsData.filter(booking => booking.status === 'still_out').length;
-      const confirmed = bookingsData.filter(booking => booking.status === 'confirmed').length;
-      const rejected = bookingsData.filter(booking => booking.status === 'rejected').length;
-      setCounts({ waiting, still_out, confirmed, rejected });
       
       setError(null);
       await fetchBans();
@@ -262,29 +255,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   }, []);
 
   // Function to calculate how late the student is
-  const getLateDuration = useCallback((booking) => {
-    if (!isStudentLate(booking)) return null;
-    
-    const now = new Date();
-    const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
-    const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
-    
-    // Check for impossible time combination
-    if (booking.out_date === booking.in_date && outTime > expectedReturn) {
-      return null; // Don't show late duration for impossible combinations
-    }
-    
-    const diffMs = now - expectedReturn;
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m late`;
-    } else {
-      return `${minutes}m late`;
-    }
-  }, [isStudentLate]);
+  // getLateDuration was unused; removed to reduce dead code
 
   // Bookings filtered by hostel/warden/admin AND date AND search
   const filteredBookings = useMemo(() => {
@@ -369,7 +340,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
     }
   }, []);
 
-  const handleSearchKeyPress = useCallback((e) => {
+  const handleSearchKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
       setSearchActive(true);
     }
@@ -562,7 +533,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
               placeholder="Enter room number to search..." 
               value={searchQuery} 
               onChange={handleSearchChange}
-              onKeyPress={handleSearchKeyPress}
+              onKeyDown={handleSearchKeyDown}
             />
           </div>
           <button 

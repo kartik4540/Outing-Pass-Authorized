@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useReducer } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   bookSlot, 
   fetchBookedSlots, 
   deleteBookedSlot, 
   checkApiHealth,
-  fetchPendingBookings,
-  handleBookingAction,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail,
   checkAndAutoUnban
@@ -141,11 +139,7 @@ const SlotBooking = () => {
     checkServerHealth();
     initializeUser();
     
-    const today = new Date().toISOString().split("T")[0];
-    const dateInput = document.getElementById("date");
-    if (dateInput) {
-      dateInput.setAttribute("min", today);
-    }
+    // Note: inputs already use proper min attributes; no direct DOM manipulation needed here.
   }, [fetchUserBookings]);
 
   useEffect(() => {
