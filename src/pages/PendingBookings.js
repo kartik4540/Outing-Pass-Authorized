@@ -603,7 +603,10 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
                   <h3>Booking Details</h3>
                   <p><strong>Out Date:</strong> {booking.out_date}</p>
                   <p><strong>Out Time:</strong> {booking.out_time}</p>
-                  <p><strong>In Date:</strong> {booking.in_date}</p>
+                  <p><strong>Expected Return:</strong> {booking.in_date} at {booking.in_time}</p>
+                  {booking.status === 'confirmed' && booking.actual_in_time && (
+                    <p><strong>Actual Return:</strong> {booking.actual_in_time}</p>
+                  )}
                   {selectedStatus === 'waiting' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <label htmlFor={`inTime-${booking.id}`} style={{ margin: 0 }}><strong>In Time:</strong></label>
