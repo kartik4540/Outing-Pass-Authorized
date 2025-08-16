@@ -70,8 +70,8 @@ export function getReturnedEmail(booking) {
       <ul>
         <li><b>Out Date:</b> ${booking.out_date}</li>
         <li><b>Out Time:</b> ${booking.out_time}</li>
-        <li><b>Expected Return:</b> ${booking.in_date} at ${booking.in_time}</li>
-        <li><b>Actual Return:</b> ${booking.actual_in_time || 'Not recorded'}</li>
+        <li><b>In Date:</b> ${booking.in_date}</li>
+        <li><b>In Time:</b> ${booking.in_time}</li>
         <li><b>Reason:</b> ${booking.reason}</li>
       </ul>
       <p>

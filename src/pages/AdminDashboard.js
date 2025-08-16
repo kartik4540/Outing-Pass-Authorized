@@ -169,10 +169,8 @@ const AdminDashboard = () => {
                 <p><strong>Department:</strong> {booking.department}</p>
                 <p><strong>Out Date:</strong> {booking.out_date}</p>
                 <p><strong>Out Time:</strong> {booking.out_time}</p>
-                <p><strong>Expected Return:</strong> {booking.in_date} at {booking.in_time}</p>
-                {booking.status === 'confirmed' && booking.actual_in_time && (
-                  <p><strong>Actual Return:</strong> {booking.actual_in_time}</p>
-                )}
+                <p><strong>In Date:</strong> {booking.in_date}</p>
+                <p><strong>In Time:</strong> {booking.in_time}</p>
                 <p><strong>Reason:</strong> {booking.reason}</p>
               </div>
               {booking.status === 'waiting' && (
