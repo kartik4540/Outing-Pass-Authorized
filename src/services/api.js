@@ -189,7 +189,7 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
     const updateObj = {
       status: newStatus,
       handled_by: adminEmail,
-      handled_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' '),
+      handled_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(',', ''),
     };
     if (otp) updateObj.otp = otp;
     if (resetOtpUsed) updateObj.otp_used = false;
@@ -659,7 +659,7 @@ export const updateBan = async (banId, updateData) => {
       .from('ban_students')
       .update({
         ...updateData,
-        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
+        updated_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(',', '')
       })
       .eq('id', banId)
       .select();
@@ -687,7 +687,7 @@ export const deleteBan = async (banId) => {
       .from('ban_students')
       .update({ 
         is_active: false,
-        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
+        updated_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(',', '')
       })
       .eq('id', banId)
       .select();
@@ -711,7 +711,7 @@ export const deleteBan = async (banId) => {
  */
 export const checkStudentBanStatus = async (studentEmail) => {
   try {
-    const today = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD format
     
     const { data, error } = await supabase
       .from('ban_students')
@@ -732,7 +732,7 @@ export const checkStudentBanStatus = async (studentEmail) => {
 
 export const checkAndAutoUnban = async (studentEmail) => {
   try {
-    const today = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     const { data: bans, error } = await supabase
       .from('ban_students')
       .select('*')
