@@ -195,6 +195,10 @@ const AdminStudentInfo = () => {
       dispatch({ type: 'SET_ERROR', payload: 'From date cannot be after Till date' });
       return;
     }
+    if (!currentUserEmail) {
+      dispatch({ type: 'SET_ERROR', payload: 'User email not found. Please log out and log in again.' });
+      return;
+    }
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
     dispatch({ type: 'SET_FIELD', field: 'success', value: '' });
@@ -282,6 +286,12 @@ const AdminStudentInfo = () => {
   
   // Use warden email if logged in as warden, otherwise use admin email
   const currentUserEmail = wardenLoggedIn ? wardenEmail : adminEmail;
+  
+  // Debug: Log the current user email for troubleshooting
+  console.log('Warden logged in:', wardenLoggedIn);
+  console.log('Warden email:', wardenEmail);
+  console.log('Admin email:', adminEmail);
+  console.log('Current user email:', currentUserEmail);
 
   const filteredInfo = useMemo(() => {
     let filtered = studentInfo.filter(info => {
