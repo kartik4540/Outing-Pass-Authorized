@@ -189,7 +189,7 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
     const updateObj = {
       status: newStatus,
       handled_by: adminEmail,
-      handled_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString(),
+      handled_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' '),
     };
     if (otp) updateObj.otp = otp;
     if (resetOtpUsed) updateObj.otp_used = false;
@@ -659,7 +659,7 @@ export const updateBan = async (banId, updateData) => {
       .from('ban_students')
       .update({
         ...updateData,
-        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString()
+        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
       })
       .eq('id', banId)
       .select();
@@ -687,7 +687,7 @@ export const deleteBan = async (banId) => {
       .from('ban_students')
       .update({ 
         is_active: false,
-        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString()
+        updated_at: new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ')
       })
       .eq('id', banId)
       .select();

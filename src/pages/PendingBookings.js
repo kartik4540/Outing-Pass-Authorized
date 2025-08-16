@@ -359,8 +359,8 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const openReportModal = useCallback(() => {
     // Default to current month range
     const now = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const startOfMonth = new Date(new Date(now.getFullYear(), now.getMonth(), 1).getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const endOfMonth = new Date(new Date(now.getFullYear(), now.getMonth() + 1, 0).getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
     setReportStartDate(startOfMonth);
     setReportEndDate(endOfMonth);
     setReportModalOpen(true);
