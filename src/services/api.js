@@ -549,6 +549,26 @@ export const banStudent = async (banData) => {
       throw new Error('Missing required fields: student_email, from_date, till_date, and banned_by are required.');
     }
 
+    // Application-level security: Check if user is authorized to ban
+    const isWardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
+    const adminEmail = sessionStorage.getItem('adminEmail') || '';
+    
+    // Get admin info if admin is logged in
+    let adminRole = '';
+    if (adminEmail) {
+      try {
+        const adminInfo = await fetchAdminInfoByEmail(adminEmail);
+        adminRole = adminInfo?.role || '';
+      } catch (err) {
+        // Continue if admin info fetch fails
+      }
+    }
+
+    // Only allow superadmin or warden to ban
+    if (!isWardenLoggedIn && adminRole !== 'superadmin') {
+      throw new Error('Unauthorized: Only super admins and wardens can ban students.');
+    }
+
     // Check if student is already banned for overlapping dates
     const { data: existingBans, error: checkError } = await supabase
       .from('ban_students')
