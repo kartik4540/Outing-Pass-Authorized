@@ -454,7 +454,7 @@ export const authenticateWarden = async (username, password) => {
       .from('admins')
       .select('*')
       .eq('username', username)
-      // .eq('role', 'warden') // Temporarily removed for debugging
+      .eq('role', 'warden') // Re-enabled role validation for security
       .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     if (!data) return null;

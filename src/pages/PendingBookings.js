@@ -58,9 +58,12 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
         allowedHostels = Array.isArray(wardenHostels) ? wardenHostels : [];
       } else if (adminRole === 'warden') {
         allowedHostels = Array.isArray(adminHostels) ? adminHostels : [];
-      } else {
-        // Super warden or higher: no restriction
+      } else if (adminRole === 'superadmin') {
+        // Super admin: no restriction
         allowedHostels = ['all'];
+      } else {
+        // Other roles: no access
+        allowedHostels = [];
       }
 
       const bookingsData = await fetchPendingBookings(adminEmail, allowedHostels) || [];
