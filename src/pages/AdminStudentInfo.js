@@ -204,7 +204,7 @@ const AdminStudentInfo = () => {
         from_date: banModal.from,
         till_date: banModal.till,
         reason: banModal.reason || null,
-        banned_by: adminEmail
+        banned_by: currentUserEmail
       };
       await banStudent(banData);
       dispatch({ type: 'SET_SUCCESS', payload: `Student ${banModal.info.student_email} has been banned from ${banModal.from} to ${banModal.till}` });
@@ -278,6 +278,10 @@ const AdminStudentInfo = () => {
 
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
   const wardenHostels = wardenLoggedIn ? JSON.parse(sessionStorage.getItem('wardenHostels') || '[]') : [];
+  const wardenEmail = wardenLoggedIn ? sessionStorage.getItem('wardenEmail') : '';
+  
+  // Use warden email if logged in as warden, otherwise use admin email
+  const currentUserEmail = wardenLoggedIn ? wardenEmail : adminEmail;
 
   const filteredInfo = useMemo(() => {
     let filtered = studentInfo.filter(info => {
@@ -305,7 +309,7 @@ const AdminStudentInfo = () => {
       padding: 24,
       overflowX: 'hidden' // Prevent horizontal overflow
     }}>
-      <h2>{wardenLoggedIn ? 'Warden: Student Info Management' : 'Admin: Student Info Management'}</h2>
+      <h2>{wardenLoggedIn ? 'Warden: Student Info & Ban Management' : 'Admin: Student Info Management'}</h2>
       
       <div style={{ marginBottom: 16 }}>
         <input
@@ -345,13 +349,13 @@ const AdminStudentInfo = () => {
       {uploadError && <div style={{ color: 'red', marginBottom: 8 }}>{uploadError}</div>}
       {adminRole !== 'superadmin' && !wardenLoggedIn && (
         <div style={{ color: 'orange', marginBottom: 16, fontWeight: 'bold' }}>
-          Only the super warden can add or edit student data.
+          Only the super admin can add or edit student data.
         </div>
       )}
-      {(adminRole === 'superadmin' || wardenLoggedIn) && (
+      {adminRole === 'superadmin' && !wardenLoggedIn && (
         <button onClick={handleAddNew} style={{ marginBottom: 16 }}>Add New Student Info</button>
       )}
-      {(adminRole === 'superadmin' || wardenLoggedIn) && (
+      {adminRole === 'superadmin' && !wardenLoggedIn && (
       <div style={{ marginBottom: 16 }}>
         <div style={{ 
           display: 'flex', 
@@ -409,7 +413,7 @@ const AdminStudentInfo = () => {
           </tr>
         </thead>
         <tbody>
-            {(adminRole === 'superadmin' || wardenLoggedIn) && editing === 'new' && (
+            {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
                 <input name="student_email" value={form.student_email} onChange={handleChange} placeholder="Student Email" />
@@ -431,7 +435,7 @@ const AdminStudentInfo = () => {
             </tr>
           )}
           {filteredInfo.map((info) => (
-            (adminRole === 'superadmin' || wardenLoggedIn) && editing === info.id ? (
+            adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id ? (
               <tr key={info.id}>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
                   <input name="student_email" value={form.student_email} onChange={handleChange} disabled />
@@ -460,8 +464,12 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.updated_by || info.created_by || ''}</td>
                 {(adminRole === 'superadmin' || wardenLoggedIn) && (
                 <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', fontSize: '12px' }}>Edit</button>
-                    <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Delete</button>
+                    {adminRole === 'superadmin' && !wardenLoggedIn && (
+                      <>
+                        <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', fontSize: '12px' }}>Edit</button>
+                        <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Delete</button>
+                      </>
+                    )}
                     <button onClick={handleBanModalFactory(info)} style={{ background: '#ff9800', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Ban</button>
                     {banStatuses[info.student_email] && (
                       <>

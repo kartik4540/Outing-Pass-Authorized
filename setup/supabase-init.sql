@@ -193,13 +193,13 @@ CREATE POLICY admin_view_student_info ON student_info
         AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
     ));
 
--- 13. Admins/wardens can modify all student info
+-- 13. Only super admins can modify student info
 CREATE POLICY admin_modify_student_info ON student_info
     FOR ALL
     USING (EXISTS (
       SELECT 1 FROM admins
       WHERE admins.email = auth.email()
-        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+        AND admins.role = 'superadmin'
     ));
 
 -- 14. Students can view their own info
@@ -238,17 +238,16 @@ CREATE POLICY view_ban_students ON ban_students
         OR system_users.email = auth.email()
     ));
 
--- 20. Only admins and wardens can create/update/delete bans
+-- 20. Only super admins and wardens can create/update/delete bans
 CREATE POLICY modify_ban_students ON ban_students
     FOR ALL
     USING (EXISTS (
       SELECT 1 FROM admins
       WHERE admins.email = auth.email()
-        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+        AND (admins.role = 'superadmin' OR admins.role = 'warden')
     ) OR EXISTS (
       SELECT 1 FROM system_users
       WHERE system_users.username = auth.jwt() ->> 'username'
-        OR system_users.email = auth.email()
     ));
 
 -- 21. Students can view their own ban status
