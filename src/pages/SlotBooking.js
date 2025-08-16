@@ -350,7 +350,7 @@ const SlotBooking = () => {
             onChange={handleBookingChange}
             required
             disabled={(!isAdmin && !studentInfoExists) || loading || apiError}
-            min={new Date().toISOString().split('T')[0]}
+            min={new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]}
           />
         </div>
         <div className="form-group">
@@ -375,7 +375,7 @@ const SlotBooking = () => {
             onChange={handleBookingChange}
             required
             disabled={(!isAdmin && !studentInfoExists) || loading || apiError}
-            min={bookingForm.outDate || new Date().toISOString().split('T')[0]}
+            min={bookingForm.outDate || new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]}
           />
         </div>
         <div className="form-group">

@@ -243,7 +243,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   const isStudentLate = useCallback((booking) => {
     if (booking.status !== 'still_out') return false;
     
-    const now = new Date();
+    const now = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
     const outTime = new Date(`${booking.out_date}T${booking.out_time}`);
     const expectedReturn = new Date(`${booking.in_date}T${booking.in_time}`);
     
@@ -358,7 +358,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
   // Report handlers
   const openReportModal = useCallback(() => {
     // Default to current month range
-    const now = new Date();
+    const now = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
     setReportStartDate(startOfMonth);
@@ -424,7 +424,7 @@ const PendingBookings = ({ adminRole, adminHostels }) => {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
       
       // Generate filename with timestamp for uniqueness
-      const timestamp = new Date().toISOString().split('T')[0];
+      const timestamp = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
       const filename = `Outing_Report_${reportStartDate}_to_${reportEndDate}_${timestamp}.xlsx`;
       
       XLSX.writeFile(workbook, filename);
