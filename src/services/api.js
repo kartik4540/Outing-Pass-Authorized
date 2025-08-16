@@ -194,8 +194,9 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
     if (otp) updateObj.otp = otp;
     if (resetOtpUsed) updateObj.otp_used = false;
     if (newStatus === 'confirmed') {
-      // If moving from still_out to confirmed, mark OTP as used
+      // If moving from still_out to confirmed, mark OTP as used AND set actual return time
       updateObj.otp_used = true;
+      updateObj.actual_in_time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(',', '');
     }
     if (newStatus === 'rejected') {
       updateObj.rejection_reason = rejectionReason || null;
@@ -267,13 +268,16 @@ export const updateBookingInTime = async (bookingId, newInTime) => {
   try {
     const { data, error } = await supabase
       .from('outing_requests')
-      .update({ in_time: newInTime })
+      .update({ 
+        in_time: newInTime,
+        actual_in_time: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }).slice(0, 16).replace(',', '')
+      })
       .eq('id', bookingId)
       .select();
     if (error) throw error;
     return {
       success: true,
-      message: 'In Time updated successfully',
+      message: 'In Time and Actual Return Time updated successfully',
       booking: data[0]
     };
   } catch (error) {
