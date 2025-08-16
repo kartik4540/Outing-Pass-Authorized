@@ -1,7 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { getStatusUpdateEmail, getNowOutEmail, getReturnedEmail } from './mailTemplates';
 import * as XLSX from 'xlsx';
-import { getIndianISOString, getIndianDateString } from '../utils/timezone.js';
 
 // No longer need API_BASE_URL as we're using Supabase directly
 
