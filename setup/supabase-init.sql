@@ -225,15 +225,31 @@ CREATE POLICY allow_login_by_username ON system_users
 -- 18. Enable RLS for ban_students table
 ALTER TABLE ban_students ENABLE ROW LEVEL SECURITY;
 
--- 19. Admins can view all bans
+-- 19. Admins and wardens can view all bans
 CREATE POLICY view_ban_students ON ban_students
     FOR SELECT
-    USING (true);
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ) OR EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
 
--- 20. Only admins can create/update/delete bans
+-- 20. Only admins and wardens can create/update/delete bans
 CREATE POLICY modify_ban_students ON ban_students
     FOR ALL
-    USING (true);
+    USING (EXISTS (
+      SELECT 1 FROM admins
+      WHERE admins.email = auth.email()
+        AND (admins.role = 'admin' OR admins.role = 'warden' OR admins.role = 'superadmin')
+    ) OR EXISTS (
+      SELECT 1 FROM system_users
+      WHERE system_users.username = auth.jwt() ->> 'username'
+        OR system_users.email = auth.email()
+    ));
 
 -- 21. Students can view their own ban status
 CREATE POLICY student_view_own_ban ON ban_students

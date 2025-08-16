@@ -305,7 +305,7 @@ const AdminStudentInfo = () => {
       padding: 24,
       overflowX: 'hidden' // Prevent horizontal overflow
     }}>
-      <h2>{wardenLoggedIn ? 'Warden: Student Info (View Only)' : 'Admin: Student Info Management'}</h2>
+      <h2>{wardenLoggedIn ? 'Warden: Student Info Management' : 'Admin: Student Info Management'}</h2>
       
       <div style={{ marginBottom: 16 }}>
         <input
@@ -348,10 +348,10 @@ const AdminStudentInfo = () => {
           Only the super warden can add or edit student data.
         </div>
       )}
-      {adminRole === 'superadmin' && !wardenLoggedIn && (
+      {(adminRole === 'superadmin' || wardenLoggedIn) && (
         <button onClick={handleAddNew} style={{ marginBottom: 16 }}>Add New Student Info</button>
       )}
-      {adminRole === 'superadmin' && !wardenLoggedIn && (
+      {(adminRole === 'superadmin' || wardenLoggedIn) && (
       <div style={{ marginBottom: 16 }}>
         <div style={{ 
           display: 'flex', 
@@ -403,13 +403,13 @@ const AdminStudentInfo = () => {
             <th style={{ border: '1px solid #ccc', padding: 8, width: '20%', wordWrap: 'break-word' }}>Parent Email</th>
             <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Parent Phone</th>
             <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Last Edited By</th>
-              {adminRole === 'superadmin' && !wardenLoggedIn && (
+              {(adminRole === 'superadmin' || wardenLoggedIn) && (
             <th style={{ border: '1px solid #ccc', padding: 8, width: '15%', wordWrap: 'break-word' }}>Actions</th>
               )}
           </tr>
         </thead>
         <tbody>
-            {adminRole === 'superadmin' && !wardenLoggedIn && editing === 'new' && (
+            {(adminRole === 'superadmin' || wardenLoggedIn) && editing === 'new' && (
             <tr>
               <td style={{ border: '1px solid #ccc', padding: 8 }}>
                 <input name="student_email" value={form.student_email} onChange={handleChange} placeholder="Student Email" />
@@ -431,7 +431,7 @@ const AdminStudentInfo = () => {
             </tr>
           )}
           {filteredInfo.map((info) => (
-            adminRole === 'superadmin' && !wardenLoggedIn && editing === info.id ? (
+            (adminRole === 'superadmin' || wardenLoggedIn) && editing === info.id ? (
               <tr key={info.id}>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>
                   <input name="student_email" value={form.student_email} onChange={handleChange} disabled />
@@ -458,7 +458,7 @@ const AdminStudentInfo = () => {
                 <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.parent_email}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.parent_phone || 'N/A'}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8, wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.updated_by || info.created_by || ''}</td>
-                {adminRole === 'superadmin' && !wardenLoggedIn && (
+                {(adminRole === 'superadmin' || wardenLoggedIn) && (
                 <td style={{ border: '1px solid #ccc', padding: 8, display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button onClick={handleEditFactory(info)} style={{ background: '#1976d2', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', fontSize: '12px' }}>Edit</button>
                     <button onClick={handleDeleteFactory(info)} style={{ background: '#dc3545', color: 'white', border: 'none', borderRadius: 4, padding: '4px 8px', fontWeight: 500, cursor: 'pointer', marginLeft: 4, transition: 'background 0.2s', fontSize: '12px' }}>Delete</button>
