@@ -17,6 +17,7 @@ const initialState = {
   adminRole: '',
   uploadMessage: '',
   uploadError: '',
+  uploadProgress: { isUploading: false, current: 0, total: 0, percentage: 0, estimatedTime: '', startTime: null, fileName: '' },
   banModal: { open: false, info: null, from: '', till: '', reason: '' },
   banStatuses: {},
   unbanLoading: {},
@@ -57,7 +58,7 @@ const AdminStudentInfo = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
     studentInfo, editing, form, loading, error, success, search, searchQuery, searchActive, adminEmail,
-    adminRole, uploadMessage, uploadError, banModal, banStatuses, unbanLoading
+    adminRole, uploadMessage, uploadError, uploadProgress, banModal, banStatuses, unbanLoading
   } = state;
 
   const fetchBans = useCallback(async () => {
@@ -155,35 +156,164 @@ const AdminStudentInfo = () => {
   const handleExcelUpload = async (event) => {
     dispatch({ type: 'SET_FIELD', field: 'uploadMessage', value: '' });
     dispatch({ type: 'SET_FIELD', field: 'uploadError', value: '' });
+    
     const file = event.target.files[0];
     if (!file) return;
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet);
-    let successCount = 0;
-    let errorCount = 0;
-    for (const row of rows) {
-      const info = {
-        student_email: row.student_email || row["Student Email"],
-        hostel_name: row.hostel_name || row["Hostel Name"],
-        parent_email: row.parent_email || row["Parent Email"],
-        parent_phone: row.parent_phone || row["Parent Phone"],
-      };
-      if (info.student_email && info.hostel_name && info.parent_email) {
-        try {
-          await addOrUpdateStudentInfo(info);
-          successCount++;
-        } catch (e) {
-          errorCount++;
-        }
-      } else {
-        errorCount++;
+
+    // Show confirmation for large files
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 5) {
+      const estimatedRows = Math.ceil(fileSizeMB * 100); // Rough estimate
+      const estimatedTime = Math.ceil(estimatedRows * 0.1); // ~0.1 seconds per row
+      
+      const confirmMessage = `This file is ${fileSizeMB.toFixed(1)}MB and may contain approximately ${estimatedRows} rows.\n\nEstimated processing time: ${estimatedTime} seconds\n\nDo you want to continue with the upload?`;
+      
+      if (!window.confirm(confirmMessage)) {
+        event.target.value = ''; // Reset file input
+        return;
       }
     }
-    loadStudentInfo();
-    if (successCount > 0) dispatch({ type: 'SET_FIELD', field: 'uploadMessage', value: `${successCount} row(s) added/updated successfully.` });
-    if (errorCount > 0) dispatch({ type: 'SET_FIELD', field: 'uploadError', value: `${errorCount} row(s) failed to add/update.` });
+
+    try {
+      // Start upload progress tracking
+      const startTime = Date.now();
+      dispatch({ 
+        type: 'SET_FIELD', 
+        field: 'uploadProgress', 
+        value: { 
+          isUploading: true, 
+          current: 0, 
+          total: 0, 
+          percentage: 0, 
+          estimatedTime: 'Calculating...', 
+          startTime,
+          fileName: file.name
+        } 
+      });
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+      
+      // Update total count
+      dispatch({ 
+        type: 'SET_FIELD', 
+        field: 'uploadProgress', 
+        value: { 
+          isUploading: true, 
+          current: 0, 
+          total: rows.length, 
+          percentage: 0, 
+          estimatedTime: 'Calculating...', 
+          startTime,
+          fileName: file.name
+        } 
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Process rows with progress updates
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const info = {
+          student_email: row.student_email || row["Student Email"],
+          hostel_name: row.hostel_name || row["Hostel Name"],
+          parent_email: row.parent_email || row["Parent Email"],
+          parent_phone: row.parent_phone || row["Parent Phone"],
+        };
+        
+        if (info.student_email && info.hostel_name && info.parent_email) {
+          try {
+            await addOrUpdateStudentInfo(info);
+            successCount++;
+          } catch (e) {
+            errorCount++;
+          }
+        } else {
+          errorCount++;
+        }
+
+        // Update progress every 5 rows or on last row for better responsiveness
+        if (i % 5 === 0 || i === rows.length - 1) {
+          const currentTime = Date.now();
+          const elapsed = (currentTime - startTime) / 1000;
+          const percentage = Math.round((i + 1) / rows.length * 100);
+          
+          // Calculate estimated time remaining
+          const avgTimePerRow = elapsed / (i + 1);
+          const remainingRows = rows.length - (i + 1);
+          const estimatedTimeRemaining = Math.ceil(avgTimePerRow * remainingRows);
+          
+          dispatch({ 
+            type: 'SET_FIELD', 
+            field: 'uploadProgress', 
+            value: { 
+              isUploading: true, 
+              current: i + 1, 
+              total: rows.length, 
+              percentage, 
+              estimatedTime: `${estimatedTimeRemaining}s remaining`, 
+              startTime,
+              fileName: file.name
+            } 
+          });
+        }
+      }
+
+      // Upload complete
+      dispatch({ 
+        type: 'SET_FIELD', 
+        field: 'uploadProgress', 
+        value: { 
+          isUploading: false, 
+          current: rows.length, 
+          total: rows.length, 
+          percentage: 100, 
+          estimatedTime: 'Complete!', 
+          startTime,
+          fileName: file.name
+        } 
+      });
+
+      await loadStudentInfo();
+      
+      const totalTime = Math.round((Date.now() - startTime) / 1000);
+      if (successCount > 0) {
+        dispatch({ 
+          type: 'SET_FIELD', 
+          field: 'uploadMessage', 
+          value: `✅ Upload completed in ${totalTime}s! ${successCount} row(s) added/updated successfully.` 
+        });
+      }
+      if (errorCount > 0) {
+        dispatch({ 
+          type: 'SET_FIELD', 
+          field: 'uploadError', 
+          value: `⚠️ ${errorCount} row(s) failed to add/update.` 
+        });
+      }
+
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_FIELD', 
+        field: 'uploadProgress', 
+        value: { 
+          isUploading: false, 
+          current: 0, 
+          total: 0, 
+          percentage: 0, 
+          estimatedTime: '', 
+          startTime: null,
+          fileName: ''
+        } 
+      });
+      dispatch({ type: 'SET_FIELD', field: 'uploadError', value: `❌ Upload failed: ${error.message}` });
+    } finally {
+      // Reset file input
+      event.target.value = '';
+    }
   };
 
   const handleBanSubmit = async () => {
@@ -319,6 +449,14 @@ const AdminStudentInfo = () => {
       padding: 24,
       overflowX: 'hidden' // Prevent horizontal overflow
     }}>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <h2>{wardenLoggedIn ? 'Warden: Student Info & Ban Management' : 'Admin: Student Info Management'}</h2>
       
       <div style={{ marginBottom: 16 }}>
@@ -357,6 +495,66 @@ const AdminStudentInfo = () => {
       {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
       {uploadMessage && <div style={{ color: 'green', marginBottom: 8 }}>{uploadMessage}</div>}
       {uploadError && <div style={{ color: 'red', marginBottom: 8 }}>{uploadError}</div>}
+      
+      {/* Upload Progress Indicator */}
+      {uploadProgress.isUploading && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 16, 
+          backgroundColor: '#f8f9fa', 
+          borderRadius: 8, 
+          border: '1px solid #dee2e6' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ 
+              width: 20, 
+              height: 20, 
+              border: '2px solid #007bff', 
+              borderTop: '2px solid transparent', 
+              borderRadius: '50%', 
+              animation: 'spin 1s linear infinite',
+              marginRight: 12 
+            }}></div>
+            <div>
+              <span style={{ fontWeight: 600, color: '#007bff' }}>
+                Uploading Student Data...
+              </span>
+              <div style={{ fontSize: 12, color: '#6c757d', marginTop: 2 }}>
+                File: {uploadProgress.fileName}
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span>Progress: {uploadProgress.current} / {uploadProgress.total} rows</span>
+              <span>{uploadProgress.percentage}%</span>
+            </div>
+            <div style={{ 
+              width: '100%', 
+              height: 8, 
+              backgroundColor: '#e9ecef', 
+              borderRadius: 4, 
+              overflow: 'hidden' 
+            }}>
+              <div style={{ 
+                width: `${uploadProgress.percentage}%`, 
+                height: '100%', 
+                backgroundColor: '#007bff', 
+                transition: 'width 0.3s ease' 
+              }}></div>
+            </div>
+          </div>
+          
+          <div style={{ 
+            fontSize: 14, 
+            color: '#6c757d', 
+            fontStyle: 'italic' 
+          }}>
+            {uploadProgress.estimatedTime}
+          </div>
+        </div>
+      )}
       {adminRole !== 'superadmin' && !wardenLoggedIn && (
         <div style={{ color: 'orange', marginBottom: 16, fontWeight: 'bold' }}>
           Only the super admin can add or edit student data.
@@ -374,18 +572,26 @@ const AdminStudentInfo = () => {
           marginBottom: 8,
           flexWrap: 'wrap' // Allow wrapping on mobile
         }}>
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} />
+          <input 
+            type="file" 
+            accept=".xlsx,.xls,.csv" 
+            onChange={handleExcelUpload} 
+            disabled={uploadProgress.isUploading}
+            style={{ opacity: uploadProgress.isUploading ? 0.6 : 1 }}
+          />
           <button 
             onClick={handleDownloadTemplate}
+            disabled={uploadProgress.isUploading}
             style={{ 
               padding: '8px 16px', 
-              backgroundColor: '#28a745', 
+              backgroundColor: uploadProgress.isUploading ? '#6c757d' : '#28a745', 
               color: 'white', 
               border: 'none', 
               borderRadius: 4, 
-              cursor: 'pointer',
+              cursor: uploadProgress.isUploading ? 'not-allowed' : 'pointer',
               fontWeight: 500,
-              whiteSpace: 'nowrap' // Prevent button text wrapping
+              whiteSpace: 'nowrap', // Prevent button text wrapping
+              opacity: uploadProgress.isUploading ? 0.6 : 1
             }}
           >
             📥 Download Template
