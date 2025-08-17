@@ -164,7 +164,7 @@ const AdminStudentInfo = () => {
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > 5) {
       const estimatedRows = Math.ceil(fileSizeMB * 100); // Rough estimate
-      const estimatedTime = Math.ceil(estimatedRows * 0.1); // ~0.1 seconds per row
+      const estimatedTime = Math.ceil(estimatedRows * 0.05); // Optimized estimate: ~0.05 seconds per row
       
       const confirmMessage = `This file is ${fileSizeMB.toFixed(1)}MB and may contain approximately ${estimatedRows} rows.\n\nEstimated processing time: ${estimatedTime} seconds\n\nDo you want to continue with the upload?`;
       
@@ -213,53 +213,64 @@ const AdminStudentInfo = () => {
 
       let successCount = 0;
       let errorCount = 0;
+      const failedRows = []; // Track failed rows for download
       
-      // Process rows with progress updates
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const info = {
-          student_email: row.student_email || row["Student Email"],
-          hostel_name: row.hostel_name || row["Hostel Name"],
-          parent_email: row.parent_email || row["Parent Email"],
-          parent_phone: row.parent_phone || row["Parent Phone"],
-        };
-        
-        if (info.student_email && info.hostel_name && info.parent_email) {
-          try {
-            await addOrUpdateStudentInfo(info);
-            successCount++;
-          } catch (e) {
+      // Process rows in batches for better performance
+      const batchSize = 50; // Process 50 rows at a time
+      
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (row, batchIndex) => {
+          const actualIndex = i + batchIndex;
+          const info = {
+            student_email: row.student_email || row["Student Email"],
+            hostel_name: row.hostel_name || row["Hostel Name"],
+            parent_email: row.parent_email || row["Parent Email"],
+            parent_phone: row.parent_phone || row["Parent Phone"],
+          };
+          
+          if (info.student_email && info.hostel_name && info.parent_email) {
+            try {
+              await addOrUpdateStudentInfo(info);
+              successCount++;
+              return null; // Success
+            } catch (e) {
+              errorCount++;
+              return { ...info, error: e.message, row_number: actualIndex + 1 }; // Failed row
+            }
+          } else {
             errorCount++;
+            return { ...info, error: 'Missing required fields', row_number: actualIndex + 1 }; // Failed row
           }
-        } else {
-          errorCount++;
-        }
-
-        // Update progress every 5 rows or on last row for better responsiveness
-        if (i % 5 === 0 || i === rows.length - 1) {
-          const currentTime = Date.now();
-          const elapsed = (currentTime - startTime) / 1000;
-          const percentage = Math.round((i + 1) / rows.length * 100);
-          
-          // Calculate estimated time remaining
-          const avgTimePerRow = elapsed / (i + 1);
-          const remainingRows = rows.length - (i + 1);
-          const estimatedTimeRemaining = Math.ceil(avgTimePerRow * remainingRows);
-          
-          dispatch({ 
-            type: 'SET_FIELD', 
-            field: 'uploadProgress', 
-            value: { 
-              isUploading: true, 
-              current: i + 1, 
-              total: rows.length, 
-              percentage, 
-              estimatedTime: `${estimatedTimeRemaining}s remaining`, 
-              startTime,
-              fileName: file.name
-            } 
-          });
-        }
+        });
+        
+        // Wait for batch to complete
+        const batchResults = await Promise.all(batchPromises);
+        failedRows.push(...batchResults.filter(result => result !== null));
+        
+        // Update progress after each batch
+        const currentTime = Date.now();
+        const elapsed = (currentTime - startTime) / 1000;
+        const percentage = Math.round(Math.min(i + batchSize, rows.length) / rows.length * 100);
+        
+        // Calculate estimated time remaining
+        const avgTimePerRow = elapsed / Math.min(i + batchSize, rows.length);
+        const remainingRows = rows.length - Math.min(i + batchSize, rows.length);
+        const estimatedTimeRemaining = Math.ceil(avgTimePerRow * remainingRows);
+        
+        dispatch({ 
+          type: 'SET_FIELD', 
+          field: 'uploadProgress', 
+          value: { 
+            isUploading: true, 
+            current: Math.min(i + batchSize, rows.length), 
+            total: rows.length, 
+            percentage, 
+            estimatedTime: `${estimatedTimeRemaining}s remaining`, 
+            startTime,
+            fileName: file.name
+          } 
+        });
       }
 
       // Upload complete
@@ -293,6 +304,41 @@ const AdminStudentInfo = () => {
           field: 'uploadError', 
           value: `⚠️ ${errorCount} row(s) failed to add/update.` 
         });
+        
+        // Auto-download failed rows as Excel file
+        if (failedRows.length > 0) {
+          try {
+            const failedWorkbook = XLSX.utils.book_new();
+            const failedWorksheet = XLSX.utils.json_to_sheet(failedRows.map(row => ({
+              'Row Number': row.row_number,
+              'Student Email': row.student_email,
+              'Hostel Name': row.hostel_name,
+              'Parent Email': row.parent_email,
+              'Parent Phone': row.parent_phone,
+              'Error Message': row.error
+            })));
+            
+            XLSX.utils.book_append_sheet(failedWorkbook, failedWorksheet, 'Failed Rows');
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const fileName = `failed_rows_${timestamp}.xlsx`;
+            
+            XLSX.writeFile(failedWorkbook, fileName);
+            
+            dispatch({ 
+              type: 'SET_FIELD', 
+              field: 'uploadMessage', 
+              value: `✅ Upload completed in ${totalTime}s! ${successCount} row(s) added/updated successfully.\n📥 Failed rows (${failedRows.length}) automatically downloaded as "${fileName}"` 
+            });
+          } catch (downloadError) {
+            console.error('Failed to download error report:', downloadError);
+            dispatch({ 
+              type: 'SET_FIELD', 
+              field: 'uploadError', 
+              value: `⚠️ ${errorCount} row(s) failed to add/update. Failed to download error report.` 
+            });
+          }
+        }
       }
 
     } catch (error) {
