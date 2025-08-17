@@ -21,6 +21,9 @@ const initialState = {
   banModal: { open: false, info: null, from: '', till: '', reason: '' },
   banStatuses: {},
   unbanLoading: {},
+  dataLoaded: false, // Track if data has been loaded
+  lastLoadTime: null, // Track when data was last loaded
+  shouldRefresh: false, // Flag to force refresh when needed
 };
 
 function reducer(state, action) {
@@ -58,7 +61,8 @@ const AdminStudentInfo = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const {
     studentInfo, editing, form, loading, error, success, search, searchQuery, searchActive, adminEmail,
-    adminRole, uploadMessage, uploadError, uploadProgress, banModal, banStatuses, unbanLoading
+    adminRole, uploadMessage, uploadError, uploadProgress, banModal, banStatuses, unbanLoading,
+    dataLoaded, lastLoadTime, shouldRefresh
   } = state;
 
   const fetchBans = useCallback(async () => {
@@ -72,30 +76,45 @@ const AdminStudentInfo = () => {
     dispatch({ type: 'SET_FIELD', field: 'banStatuses', value: statuses });
   }, []);
 
-  const loadStudentInfo = useCallback(async () => {
+  const loadStudentInfo = useCallback(async (forceRefresh = false) => {
+    // Don't reload if data is already loaded and not forcing refresh
+    if (dataLoaded && !forceRefresh && !shouldRefresh) {
+      return;
+    }
+
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_FIELD', field: 'error', value: '' });
     try {
       const data = await fetchAllStudentInfo();
       dispatch({ type: 'SET_FIELD', field: 'studentInfo', value: data || [] });
       await fetchBans();
+      dispatch({ type: 'SET_FIELD', field: 'dataLoaded', value: true });
+      dispatch({ type: 'SET_FIELD', field: 'lastLoadTime', value: Date.now() });
+      dispatch({ type: 'SET_FIELD', field: 'shouldRefresh', value: false });
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch student info' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [fetchBans]);
+  }, [fetchBans, dataLoaded, shouldRefresh]);
 
   useEffect(() => {
-    loadStudentInfo();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      dispatch({ type: 'SET_FIELD', field: 'adminEmail', value: user?.email || '' });
-      if (user?.email) {
-        const adminInfo = await fetchAdminInfoByEmail(user.email);
-        dispatch({ type: 'SET_FIELD', field: 'adminRole', value: adminInfo?.role || '' });
-      }
-    });
-  }, [loadStudentInfo]);
+    // Only load data if not already loaded or if we need to refresh
+    if (!dataLoaded || shouldRefresh) {
+      loadStudentInfo();
+    }
+    
+    // Load admin info only once
+    if (!adminEmail) {
+      supabase.auth.getUser().then(async ({ data: { user } }) => {
+        dispatch({ type: 'SET_FIELD', field: 'adminEmail', value: user?.email || '' });
+        if (user?.email) {
+          const adminInfo = await fetchAdminInfoByEmail(user.email);
+          dispatch({ type: 'SET_FIELD', field: 'adminRole', value: adminInfo?.role || '' });
+        }
+      });
+    }
+  }, [loadStudentInfo, dataLoaded, shouldRefresh, adminEmail]);
 
   const handleEdit = useCallback((info) => {
     dispatch({
@@ -132,7 +151,7 @@ const AdminStudentInfo = () => {
     try {
       await addOrUpdateStudentInfo(form, adminEmail);
       dispatch({ type: 'SAVE_SUCCESS' });
-      await loadStudentInfo();
+      await loadStudentInfo(true); // Force refresh after save
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to save student info' });
     }
@@ -146,7 +165,7 @@ const AdminStudentInfo = () => {
     try {
       await deleteStudentInfo(info.student_email);
       dispatch({ type: 'SET_SUCCESS', payload: 'Student info deleted!' });
-      await loadStudentInfo();
+      await loadStudentInfo(true); // Force refresh after delete
     } catch (err)
       {
       dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete student info' });
@@ -288,7 +307,7 @@ const AdminStudentInfo = () => {
         } 
       });
 
-      await loadStudentInfo();
+      await loadStudentInfo(true); // Force refresh after upload
       
       const totalTime = Math.round((Date.now() - startTime) / 1000);
       if (successCount > 0) {
@@ -503,7 +522,33 @@ const AdminStudentInfo = () => {
           }
         `}
       </style>
-      <h2>{wardenLoggedIn ? 'Warden: Student Info & Ban Management' : 'Admin: Student Info Management'}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2>{wardenLoggedIn ? 'Warden: Student Info & Ban Management' : 'Admin: Student Info Management'}</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {dataLoaded && lastLoadTime && (
+            <span style={{ fontSize: 12, color: '#6c757d' }}>
+              Last updated: {new Date(lastLoadTime).toLocaleTimeString()}
+            </span>
+          )}
+          <button 
+            onClick={() => loadStudentInfo(true)}
+            disabled={loading}
+            style={{ 
+              padding: '6px 12px', 
+              backgroundColor: '#007bff', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: 4, 
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+              fontSize: 12
+            }}
+            title="Refresh data"
+          >
+            {loading ? '🔄' : '🔄'} Refresh
+          </button>
+        </div>
+      </div>
       
       <div style={{ marginBottom: 16 }}>
         <input
