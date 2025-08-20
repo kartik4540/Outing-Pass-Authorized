@@ -14,6 +14,12 @@ const WardenLogin = () => {
     setLoading(true);
     setError('');
     try {
+      // Auto-reject arch123 from warden login and direct to custom Arch Gate login
+      if ((username || '').trim().toLowerCase() === 'arch123') {
+        setError('This account must use the Arch Gate login.');
+        setLoading(false);
+        return;
+      }
       const warden = await authenticateSystemUser(username, password);
       if (warden) {
         // Set session info in sessionStorage
@@ -47,7 +53,16 @@ const WardenLogin = () => {
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required style={{width:'100%',padding:8}} />
           </label>
         </div>
-        {error && <div style={{color:'red',marginBottom:8}}>{error}</div>}
+        {error && (
+          <div style={{color:'red',marginBottom:8}}>
+            {error}
+            {(username || '').trim().toLowerCase() === 'arch123' && (
+              <div style={{marginTop:8}}>
+                <button type="button" onClick={() => navigate('/arch-gate-login')} style={{padding:'6px 10px'}}>Go to Arch Gate Login</button>
+              </div>
+            )}
+          </div>
+        )}
         <button type="submit" style={{width:'100%',padding:10}} disabled={loading}>{loading ? 'Logging in...' : 'Login'}</button>
       </form>
     </div>

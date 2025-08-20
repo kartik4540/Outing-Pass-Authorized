@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import Navbar from './components/Navbar';
 import SlotBooking from './pages/SlotBooking';
@@ -111,7 +111,6 @@ function App() {
   };
 
   const wardenLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('wardenLoggedIn') === 'true';
-  const archGateLoggedIn = typeof window !== 'undefined' && sessionStorage.getItem('archGateLoggedIn') === 'true';
 
   if (sessionLoading) {
     return <div style={{textAlign:'center',marginTop:'100px',fontSize:'1.2em'}}>Loading session...</div>;
@@ -151,18 +150,9 @@ function App() {
             />
             <Route path="/warden-login" element={<WardenLogin />} />
             <Route path="/" element={user ? <SlotBooking /> : <Login />} />
-            <Route 
-              path="/arch-gate-login" 
-              element={archGateLoggedIn ? <Navigate to="/arch-otp" replace /> : <ArchGateLogin />} 
-            />
-            <Route 
-              path="/arch-otp" 
-              element={archGateLoggedIn ? <ArchGateOTP /> : <ArchGateLogin />} 
-            />
-            <Route 
-              path="/arch-outing-details" 
-              element={archGateLoggedIn ? <ArchGateOutingDetails /> : <ArchGateLogin />} 
-            />
+            <Route path="/arch-gate-login" element={<ArchGateLogin />} />
+            <Route path="/arch-otp" element={<ArchGateOTP />} />
+            <Route path="/arch-outing-details" element={<ArchGateOutingDetails />} />
           </Routes>
         </main>
       </div>
