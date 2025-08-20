@@ -161,42 +161,11 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
     // action is now the new status: 'still_out', 'confirmed', 'rejected'
     let newStatus = action;
     if (action === 'reject') newStatus = 'rejected';
-    let otp = null;
-    let resetOtpUsed = false;
-    if (newStatus === 'still_out' || newStatus === 'confirmed') {
-      // Generate a new OTP if moving to still_out or confirmed and OTP is missing or used
-      const { data: existing, error: fetchErr } = await supabase
-        .from('outing_requests')
-        .select('otp, otp_used')
-        .eq('id', bookingId)
-        .single();
-      if (fetchErr) throw fetchErr;
-      if (!existing.otp || existing.otp_used) {
-        let unique = false;
-        while (!unique) {
-          otp = generateOTP();
-          const { data: otpExists } = await supabase
-            .from('outing_requests')
-            .select('id')
-            .eq('otp', otp);
-          if (!otpExists || otpExists.length === 0) unique = true;
-        }
-        resetOtpUsed = true;
-      } else {
-        otp = existing.otp;
-      }
-    }
     const updateObj = {
       status: newStatus,
       handled_by: adminEmail,
       handled_at: new Date().toISOString(),
     };
-    if (otp) updateObj.otp = otp;
-    if (resetOtpUsed) updateObj.otp_used = false;
-    if (newStatus === 'confirmed') {
-      // If moving from still_out to confirmed, mark OTP as used
-      updateObj.otp_used = true;
-    }
     if (newStatus === 'rejected') {
       updateObj.rejection_reason = rejectionReason || null;
     }
@@ -252,6 +221,53 @@ export const handleBookingAction = async (bookingId, action, adminEmail, rejecti
       booking: data[0],
       emailResult
     };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+/**
+ * Generate OTP for a booking only on the out date and only once
+ * @param {number} bookingId - The booking ID
+ * @returns {Promise<{otp: string}>}
+ */
+export const generateOtpForBooking = async (bookingId) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: booking, error: fetchErr } = await supabase
+      .from('outing_requests')
+      .select('id, out_date, status, otp, otp_used')
+      .eq('id', bookingId)
+      .single();
+    if (fetchErr) throw fetchErr;
+    if (!booking) throw new Error('Booking not found');
+    if (booking.out_date !== today) throw new Error('OTP will be available on your out date only');
+    // Ensure the student has been let out (approved)
+    if ((booking.status || '').toLowerCase() !== 'still_out') {
+      throw new Error('OTP can be generated after you are marked as Out by the warden');
+    }
+    // If an unused OTP already exists, reuse it
+    if (booking.otp && booking.otp_used === false) {
+      return { otp: booking.otp };
+    }
+    // Generate a unique OTP
+    let otp = null;
+    let unique = false;
+    while (!unique) {
+      otp = generateOTP();
+      const { data: exists } = await supabase
+        .from('outing_requests')
+        .select('id')
+        .eq('otp', otp);
+      if (!exists || exists.length === 0) unique = true;
+    }
+    const { data: updated, error: updErr } = await supabase
+      .from('outing_requests')
+      .update({ otp, otp_used: false })
+      .eq('id', bookingId)
+      .select();
+    if (updErr) throw updErr;
+    return { otp: updated?.[0]?.otp || otp };
   } catch (error) {
     throw handleError(error);
   }
@@ -509,11 +525,13 @@ export const checkApiHealth = async () => {
 
 export const fetchOutingDetailsByOTP = async (otp) => {
   try {
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('outing_requests')
       .select('*')
       .eq('otp', otp)
       .eq('otp_used', false)
+      .gte('in_date', today)
       .single();
     if (error) throw error;
     return data;

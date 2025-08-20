@@ -7,7 +7,8 @@ import {
   checkApiHealth,
   fetchStudentInfoByEmail,
   fetchAdminInfoByEmail,
-  checkAndAutoUnban
+  checkAndAutoUnban,
+  generateOtpForBooking
 } from '../services/api';
 import './SlotBooking.css';
 import { supabase } from '../supabaseClient';
@@ -245,6 +246,30 @@ const SlotBooking = () => {
       .filter(b => (b.status === 'still_out' || b.status === 'confirmed') && b.otp)
       .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0]
   , [bookedSlots]);
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const showOtpPanel = useMemo(() => {
+    const candidate = (bookedSlots || [])
+      .filter(b => (b.status === 'still_out' || b.status === 'confirmed'))
+      .sort((a, b) => new Date(b.created_at || b.out_date || b.in_date) - new Date(a.created_at || a.out_date || a.in_date))[0];
+    if (!candidate) return null;
+    return candidate;
+  }, [bookedSlots]);
+
+  const handleGenerateOtp = useCallback(async () => {
+    try {
+      if (!showOtpPanel) return;
+      dispatch({ type: 'SET_LOADING', payload: true });
+      await generateOtpForBooking(showOtpPanel.id);
+      await fetchUserBookings(bookingForm.email);
+      dispatch({ type: 'SET_SUCCESS', payload: 'OTP generated successfully.' });
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to generate OTP' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [showOtpPanel, fetchUserBookings, bookingForm.email]);
 
   const currentBooking = useMemo(() =>
     (bookedSlots || [])
@@ -520,18 +545,35 @@ const SlotBooking = () => {
                         )}
                       </div>
           {/* Right: OTP */}
-          {latestOtpBooking && (
+          {showOtpPanel && (
             <div style={{ flex: 1, minWidth: 320, background: '#f9fbe7', border: '1px solid #cddc39', borderRadius: 12, padding: 20, boxShadow: '0 2px 8px #0001', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <h2 style={{ marginTop: 0, textAlign: 'right' }}>OTP for Arch Gate</h2>
               <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, textAlign: 'right' }}>
-                Out Date: {latestOtpBooking.out_date} | In Date: {latestOtpBooking.in_date}
+                Out Date: {showOtpPanel.out_date} | In Date: {showOtpPanel.in_date}
+              </div>
+              {showOtpPanel.out_date === todayStr ? (
+                showOtpPanel.otp ? (
+                  <>
+                    <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8, textAlign: 'right' }}>
+                      {showOtpPanel.otp}
                     </div>
-              <div style={{ fontSize: 22, letterSpacing: 2, fontWeight: 700, color: '#33691e', marginBottom: 8, textAlign: 'right' }}>
-                {latestOtpBooking.otp}
-              </div>
-              <div style={{ fontSize: 15, color: '#888', textAlign: 'right' }}>
-                {latestOtpBooking.otp_used ? <span style={{ color: '#f44336', fontWeight: 'bold' }}>OTP Used</span> : 'Please present this OTP at the Arch Gate when returning to SRM.'}
-              </div>
+                    <div style={{ fontSize: 15, color: '#888', textAlign: 'right' }}>
+                      {showOtpPanel.otp_used ? <span style={{ color: '#f44336', fontWeight: 'bold' }}>OTP Used</span> : 'Please present this OTP at the Arch Gate when returning to SRM.'}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'right' }}>
+                    <button onClick={handleGenerateOtp} disabled={loading} style={{ background: '#2e7d32', color: 'white', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}>
+                      {loading ? 'Generating...' : 'Generate OTP'}
+                    </button>
+                    <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>OTP can be generated once per outing, on the out date.</div>
+                  </div>
+                )
+              ) : (
+                <div style={{ fontSize: 14, color: '#888', textAlign: 'right' }}>
+                  OTP will be available on your out date.
+                </div>
+              )}
             </div>
           )}
         </div>
