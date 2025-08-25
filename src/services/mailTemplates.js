@@ -16,11 +16,10 @@ export function getStatusUpdateEmail(booking, statusMsg) {
         <li><b>Reason:</b> ${booking.reason}</li>
       </ul>
       <p>
-        If you have any questions, please contact the hostel administration. <br>
-        Contact-Number: 8056016627<br>
-        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
-        <i>This is an automated message. Please do not reply.</i>
-      </p>
+  If you have any questions, please contact your ward's respective hostel administration. <br>
+  Contact details are available at: <a href="https://www.srmist.edu.in/srm-hostels/">https://www.srmist.edu.in/srm-hostels/</a> <br>
+  <b><i>This is an automated message. Please do not reply.</i></b>
+</p>
     `
   };
 }
@@ -29,10 +28,11 @@ export function getStillOutAlertEmail(booking) {
   return {
     subject: 'Alert: Your ward is still out',
     html: `
-      <p>Dear Parent,</p>
-      <p>Your ward <b>${booking.name}</b> (${booking.email}) from <b>${booking.hostel_name}</b> has not returned by the expected time.</p>
-      <p>Please contact the hostel administration for more information.</p>
-      <p><i>This is an automated alert.</i></p>
+      <p>
+  If you have any questions, please contact your ward's respective hostel administration. <br>
+  Contact details are available at: <a href="https://www.srmist.edu.in/srm-hostels/">https://www.srmist.edu.in/srm-hostels/</a> <br>
+  <b><i>This is an automated message. Please do not reply.</i></b>
+</p>
     `
   };
 }
@@ -50,13 +50,10 @@ export function getNowOutEmail(booking, wardenEmail) {
         <li><b>In Time:</b> ${booking.in_time}</li>
         <li><b>Reason:</b> ${booking.reason}</li>
       </ul>
-      <p>
-        <b>Warden:</b> ${wardenEmail || 'Hostel Warden'}<br>
-        If you have any questions, please contact the hostel administration.<br>
-        Contact-Number: 8056016627<br>
-        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
-        <i>This is an automated message. Please do not reply.</i>
-      </p>
+  If you have any questions, please contact your ward's respective hostel administration. <br>
+  Contact details are available at: <a href="https://www.srmist.edu.in/srm-hostels/">https://www.srmist.edu.in/srm-hostels/</a> <br>
+  <b><i>This is an automated message. Please do not reply.</i></b>
+</p>
     `
   };
 }
@@ -75,11 +72,11 @@ export function getReturnedEmail(booking) {
         <li><b>Reason:</b> ${booking.reason}</li>
       </ul>
       <p>
-        If you have any questions, please contact the hostel administration.<br>
-        Contact-Number: 8056016627<br>
-        Email:  warden.kopperundevi.ktr@srmist.edu.in <br>
-        <i>This is an automated message. Please do not reply.</i>
-      </p>
+  If you have any questions, please contact your ward's respective hostel administration. <br>
+  Contact details are available at: <a href="https://www.srmist.edu.in/srm-hostels/">https://www.srmist.edu.in/srm-hostels/</a> <br>
+  <b><i>This is an automated message. Please do not reply.</i></b>
+</p>
+
     `
   };
 } 
