@@ -94,6 +94,7 @@ function reducer(state, action) {
 const ALLOWED_HOSTEL_NAMES = [
   'Adhiyaman',
   'Agasthiyar',
+  'Avvaiyar',
   'Began',
   'Esq A',
   'Esq B',
@@ -496,6 +497,7 @@ const AdminStudentInfo = ({ isWarden, wardenHostels: propWardenHostels }) => {
           }}>
             <span>✓ Adhiyaman</span>
             <span>✓ Agasthiyar</span>
+            <span>✓ Avvaiyar</span>
             <span>✓ Began</span>
             <span>✓ Esq A</span>
             <span>✓ Esq B</span>
