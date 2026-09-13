@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { handleBookingAction, fetchBookingsFiltered, updateBookingInTime, fetchAllBans } from '../services/api';
+import { handleBookingAction, fetchBookingsFiltered, updateBookingInTime, fetchAllBans, extendOutingTime } from '../services/api';
 import { supabase } from '../supabaseClient';
 import { getWardenContext } from '../utils/wardenHostels';
 import { safeParseSessionItem } from '../utils/sessionStorage';
@@ -30,6 +30,9 @@ const PendingBookings = ({ adminRole, adminHostels, isWarden, wardenHostels: pro
   const [rejectionReason, setRejectionReason] = useState('');
   const [wardenNameModal, setWardenNameModal] = useState({ open: false, bookingId: null, action: null });
   const [wardenName, setWardenName] = useState('');
+  const [extendModal, setExtendModal] = useState({ open: false, bookingId: null, inDate: '', inTime: '' });
+  const [extendReason, setExtendReason] = useState('');
+  const [extendSaving, setExtendSaving] = useState(false);
   // Search functionality
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
@@ -449,6 +452,48 @@ const PendingBookings = ({ adminRole, adminHostels, isWarden, wardenHostels: pro
       setLoading(false);
     }
   }, []);
+  const openExtendModal = useCallback((booking) => {
+    setExtendModal({
+      open: true,
+      bookingId: booking.id,
+      inDate: booking.in_date || '',
+      inTime: booking.in_time || ''
+    });
+    setExtendReason('');
+  }, []);
+  const handleExtendSubmit = useCallback(async () => {
+    if (!extendModal.inDate || !extendModal.inTime) {
+      setToast({ message: 'Please select both new In Date and In Time.', type: 'error' });
+      return;
+    }
+    if (!extendReason.trim()) {
+      setToast({ message: 'Please enter a reason for the extension.', type: 'error' });
+      return;
+    }
+    setExtendSaving(true);
+    try {
+      const extendedBy = wardenLoggedIn
+        ? (safeParseSessionItem('wardenUsername') || (wardenEmail ? wardenEmail.split('@')[0] : 'warden'))
+        : (user?.email || 'admin');
+      await extendOutingTime(extendModal.bookingId, extendModal.inDate, extendModal.inTime, extendReason.trim(), extendedBy);
+      setExtendModal({ open: false, bookingId: null, inDate: '', inTime: '' });
+      setExtendReason('');
+      setToast({ message: 'Return time extended successfully.', type: 'info' });
+      if (wardenLoggedIn) {
+        await fetchAllBookings(wardenEmail, 'still_out');
+      } else {
+        await fetchAllBookings(user?.email, 'still_out');
+      }
+    } catch (error) {
+      setToast({ message: 'Failed to extend: ' + (error.message || 'Unknown error'), type: 'error' });
+    } finally {
+      setExtendSaving(false);
+    }
+  }, [extendModal, extendReason, wardenLoggedIn, wardenEmail, user?.email, fetchAllBookings]);
+  const handleExtendModalClose = useCallback(() => {
+    setExtendModal({ open: false, bookingId: null, inDate: '', inTime: '' });
+    setExtendReason('');
+  }, []);
   const handleStatusChangeFactory = useCallback((status) => () => handleStatusChange(status), [handleStatusChange]);
   const handleStartDateChange = useCallback((e) => { setStartDate(e.target.value); setPage(1); }, []);
   const handleEndDateChange = useCallback((e) => { setEndDate(e.target.value); setPage(1); }, []);
@@ -813,6 +858,15 @@ const PendingBookings = ({ adminRole, adminHostels, isWarden, wardenHostels: pro
                       <strong>Handled by:</strong> {booking.handled_by}
                     </p>
                   )}
+                  {booking.extension_count > 0 && (
+                    <p className="handled-time">
+                      <strong>Extended ({booking.extension_count}/2) by:</strong> {booking.extended_by}
+                      <br />
+                      <strong>Extended on:</strong> {booking.extended_at ? new Date(booking.extended_at).toLocaleString() : ''}
+                      <br />
+                      <strong>Extension Reason:</strong> {booking.extension_reason || 'N/A'}
+                    </p>
+                  )}
                 </div>
               </div>
               {selectedStatus === 'waiting' && (
@@ -837,6 +891,9 @@ const PendingBookings = ({ adminRole, adminHostels, isWarden, wardenHostels: pro
                 <div className="still-out-actions">
                   <button onClick={handleProcessBookingStillOutConfirmFactory(booking.id)} className="in-btn">In</button>
                   <button onClick={handleSendStillOutAlertFactory(booking)} className="alert-btn">Alert</button>
+                  {(booking.extension_count || 0) < 2 && (
+                    <button onClick={() => openExtendModal(booking)} className="alert-btn">Extend</button>
+                  )}
                 </div>
               )}
             </div>
@@ -925,6 +982,44 @@ const PendingBookings = ({ adminRole, adminHostels, isWarden, wardenHostels: pro
             {wardenNameModal.action === 'confirm' ? 'Confirm' : 'Reject'}
           </button>
           <button onClick={() => setWardenNameModal({ open: false, bookingId: null, action: null })}>Cancel</button>
+        </Modal>
+      )}
+      {extendModal.open && (
+        <Modal onClose={handleExtendModalClose}>
+          <h3>Extend Return Time</h3>
+          <p style={{ fontSize: '0.9em', color: '#666' }}>
+            This booking can be extended up to 2 times. Extensions used so far will be shown on the student's card.
+          </p>
+          <div style={{ marginBottom: 12 }}>
+            <label htmlFor="extend-in-date" style={{ display: 'block', marginBottom: 4 }}><strong>New In Date:</strong></label>
+            <input
+              id="extend-in-date"
+              type="date"
+              value={extendModal.inDate}
+              onChange={e => setExtendModal(prev => ({ ...prev, inDate: e.target.value }))}
+              style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 4 }}
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label htmlFor="extend-in-time" style={{ display: 'block', marginBottom: 4 }}><strong>New In Time:</strong></label>
+            <input
+              id="extend-in-time"
+              type="time"
+              value={extendModal.inTime}
+              onChange={e => setExtendModal(prev => ({ ...prev, inTime: e.target.value }))}
+              style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 4 }}
+            />
+          </div>
+          <textarea
+            value={extendReason}
+            onChange={e => setExtendReason(e.target.value)}
+            placeholder="Enter reason for extension..."
+            style={{ width: '100%', minHeight: 60, marginBottom: 16 }}
+          />
+          <button onClick={handleExtendSubmit} disabled={extendSaving} style={{ background: '#28a745', color: 'white', marginRight: 8 }}>
+            {extendSaving ? 'Saving...' : 'Save Extension'}
+          </button>
+          <button onClick={handleExtendModalClose} disabled={extendSaving}>Cancel</button>
         </Modal>
       )}
     </div>

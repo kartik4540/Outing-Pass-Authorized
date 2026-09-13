@@ -680,7 +680,11 @@ const SlotBooking = () => {
       >
         <div style={{ marginBottom: 6 }}>
           <span style={{ fontWeight: 500 }}>Created by:</span> Kartik Mittal (<a href="mailto:km5260@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>km5260@srmist.edu.in</a>)<br />
-          <span style={{ fontWeight: 500 }}>Co-developer:</span> Reetam Kole (<a href="mailto:rk0598@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>rk0598@srmist.edu.in</a>)
+          <span style={{ fontWeight: 500 }}>Co-developer:</span> Reetam Kole (<a href="mailto:rk0598@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>rk0598@srmist.edu.in</a>)<br />
+          <span style={{ fontWeight: 500 }}>Maintained by:</span><br />
+          Yatin Annam (<a href="mailto:ya8476@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>ya8476@srmist.edu.in</a>)<br />
+          Viva Baranwal (<a href="mailto:vb1680@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>vb1680@srmist.edu.in</a>)<br />
+          Krishanth R J (<a href="mailto:kr3976@srmist.edu.in" style={{ color: '#1976d2', textDecoration: 'none' }}>kr3976@srmist.edu.in</a>)
         </div>
         <div style={{ marginTop: 4 }}>
           <span style={{ fontWeight: 500 }}>Other SRM links:</span>

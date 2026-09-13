@@ -211,7 +211,11 @@ export const fetchBookingsFiltered = async (opts = {}) => {
           'in_time',
           'reason',
           'handled_by',
-          'handled_at'
+          'handled_at',
+          'extension_count',
+          'extension_reason',
+          'extended_by',
+          'extended_at'
         ].join(',')
       : '*';
 
@@ -436,6 +440,50 @@ export const updateBookingInTime = async (bookingId, newInTime) => {
     return {
       success: true,
       message: 'In Time updated successfully',
+      booking: data[0]
+    };
+  } catch (error) {
+    throw handleError(error);
+  }
+};
+
+// Extends a Still Out student's expected return date/time, up to 2 times per booking.
+export const extendOutingTime = async (bookingId, newInDate, newInTime, extensionReason, extendedBy) => {
+  try {
+    const { data: existingRows, error: fetchError } = await supabase
+      .from('outing_requests')
+      .select('extension_count, in_date, in_time')
+      .eq('id', bookingId)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const currentCount = existingRows?.extension_count || 0;
+    if (currentCount >= 2) {
+      throw new Error('This booking has already been extended twice. No further extensions allowed.');
+    }
+
+    const updateObj = {
+      in_date: newInDate,
+      in_time: newInTime,
+      extension_reason: extensionReason,
+      extended_by: extendedBy,
+      extended_at: new Date().toISOString(),
+      extension_count: currentCount + 1
+    };
+    if (currentCount === 0) {
+      updateObj.original_in_date = existingRows.in_date;
+      updateObj.original_in_time = existingRows.in_time;
+    }
+
+    const { data, error } = await supabase
+      .from('outing_requests')
+      .update(updateObj)
+      .eq('id', bookingId)
+      .select();
+    if (error) throw error;
+    return {
+      success: true,
+      message: 'Return time extended successfully',
       booking: data[0]
     };
   } catch (error) {
